@@ -1,0 +1,805 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User management and authentication
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  username      String   @unique
+  name          String
+  password      String
+  role          UserRole @default(OPERATOR)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  shifts         Shift[]
+  auditLogs      AuditLog[]
+  sessions       ParkingSession[] @relation("OperatorSessions")
+  payments       Payment[]
+  credits        CreditAccount[]
+  locations      UserLocation[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  OPERATOR
+  SUPERVISOR
+  ADMIN
+  AUDITOR
+}
+
+// Shift management
+model Shift {
+  id          String   @id @default(cuid())
+  name        String
+  startTime   DateTime
+  endTime     DateTime?
+  operatorId  String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  operator    User            @relation(fields: [operatorId], references: [id])
+  sessions    ParkingSession[]
+  payments    Payment[]
+  reports     ShiftReport[]
+  
+  @@map("shifts")
+}
+
+// Vehicle and plate management
+model Vehicle {
+  id           String      @id @default(cuid())
+  plateNumber  String      @unique
+  vehicleType  VehicleType @default(CAR)
+  ownerName    String?
+  ownerPhone   String?
+  isAllowed    Boolean     @default(true)
+  isBlacklisted Boolean    @default(false)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  sessions     ParkingSession[]
+  
+  @@map("vehicles")
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+  BUS
+  VAN
+}
+
+// Vehicle groups for pricing
+model VehicleGroup {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  vehicleType     VehicleType  @default(CAR)
+  entranceFee     Float       @default(0)
+  freeMinutes     Int         @default(15)
+  hourlyRate      Float
+  dailyRate       Float?
+  nightlyRate     Float?
+  dailyCap        Float?
+  nightlyCap      Float?
+  weeklyCap       Float?
+  monthlyCap      Float?
+  isActive        Boolean     @default(true)
+  isHolidayRate   Boolean     @default(false)
+  isWeekendRate   Boolean     @default(false)
+  validFrom       DateTime
+  validTo         DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  tariffs         Tariff[]
+  
+  @@map("vehicle_groups")
+}
+
+// Tariff management
+model Tariff {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  vehicleType     VehicleType @default(CAR)
+  groupId         String?
+  entranceFee     Float       @default(0)
+  freeMinutes     Int         @default(15)
+  hourlyRate      Float
+  dailyRate       Float?
+  nightlyRate     Float?
+  dailyCap        Float?
+  nightlyCap      Float?
+  weeklyCap       Float?
+  monthlyCap      Float?
+  isActive        Boolean     @default(true)
+  isHolidayRate   Boolean     @default(false)
+  isWeekendRate   Boolean     @default(false)
+  validFrom       DateTime
+  validTo         DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  sessions        ParkingSession[]
+  holidayRules    HolidayTariffRule[]
+  group           VehicleGroup? @relation(fields: [groupId], references: [id])
+  
+  @@map("tariffs")
+}
+
+// Credit account system
+model CreditAccount {
+  id              String        @id @default(cuid())
+  userId          String
+  balance         Float         @default(0)
+  monthlyLimit    Float         @default(0)
+  creditLimit     Float         @default(0)
+  warningThreshold Float         @default(10000)
+  isActive        Boolean       @default(true)
+  lastChargedAt   DateTime?
+  nextChargeDate  DateTime?
+  autoCharge      Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id])
+  transactions    CreditTransaction[]
+  sessions        ParkingSession[]
+  monthlyCharges  MonthlyCharge[]
+  notifications   CreditNotification[]
+  settings        CreditAccountSettings?
+  
+  @@map("credit_accounts")
+}
+
+// Credit transactions
+model CreditTransaction {
+  id              String              @id @default(cuid())
+  accountId       String
+  amount          Float
+  type            CreditTransactionType
+  description     String?
+  referenceId     String?             // Payment ID or session ID
+  balanceBefore   Float
+  balanceAfter    Float
+  createdAt       DateTime            @default(now())
+
+  // Relations
+  account         CreditAccount       @relation(fields: [accountId], references: [id])
+  
+  @@map("credit_transactions")
+}
+
+// Monthly credit charging system
+model MonthlyCharge {
+  id              String            @id @default(cuid())
+  accountId       String
+  amount          Float
+  chargeDate      DateTime          @default(now())
+  nextChargeDate  DateTime
+  status          MonthlyChargeStatus @default(PENDING)
+  transactionId   String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  account         CreditAccount     @relation(fields: [accountId], references: [id])
+  
+  @@map("monthly_charges")
+}
+
+enum MonthlyChargeStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Credit account notifications
+model CreditNotification {
+  id              String                @id @default(cuid())
+  accountId       String
+  type            NotificationType
+  title           String
+  message         String
+  severity        NotificationSeverity  @default(MEDIUM)
+  isRead          Boolean               @default(false)
+  isSent          Boolean               @default(false)
+  sentAt          DateTime?
+  readAt          DateTime?
+  createdAt       DateTime              @default(now())
+
+  // Relations
+  account         CreditAccount         @relation(fields: [accountId], references: [id])
+  
+  @@map("credit_notifications")
+}
+
+enum NotificationType {
+  LOW_BALANCE
+  MONTHLY_CHARGE_FAILED
+  MONTHLY_CHARGE_SUCCESS
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REACTIVATED
+  CREDIT_LIMIT_EXCEEDED
+  PAYMENT_FAILED
+  MANUAL_CHARGE
+}
+
+enum NotificationSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Credit account settings
+model CreditAccountSettings {
+  id                    String   @id @default(cuid())
+  accountId             String   @unique
+  autoMonthlyCharge     Boolean  @default(true)
+  monthlyChargeAmount   Float    @default(100000)
+  chargeDayOfMonth      Int      @default(1) // 1-31
+  lowBalanceThreshold   Float    @default(10000)
+  warningThreshold1     Float    @default(50000)  // First warning level
+  warningThreshold2     Float    @default(20000)  // Second warning level
+  criticalThreshold     Float    @default(5000)   // Critical level
+  enableEmailNotifications Boolean @default(true)
+  enableSMSNotifications   Boolean @default(false)
+  enableInAppNotifications Boolean @default(true)
+  suspendOnZeroBalance   Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  account               CreditAccount @relation(fields: [accountId], references: [id])
+  
+  @@map("credit_account_settings")
+}
+
+enum CreditTransactionType {
+  CHARGE
+  DEDUCTION
+  REFUND
+  ADJUSTMENT
+  MONTHLY_RESET
+}
+
+// Parking locations and cameras
+model ParkingLocation {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  address       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  cameras       Camera[]
+  parkingLots   ParkingLot[]
+  userLocations UserLocation[]
+  
+  @@map("parking_locations")
+}
+
+// Camera management
+model Camera {
+  id            String   @id @default(cuid())
+  locationId    String
+  name          String
+  type          CameraType @default(ENTRY)
+  direction     CameraDirection @default(IN)
+  isActive      Boolean  @default(true)
+  ipAddress     String?
+  rtspUrl       String?
+  resolution    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  location      ParkingLocation @relation(fields: [locationId], references: [id])
+  entrySessions ParkingSession[] @relation("EntryCamera")
+  exitSessions  ParkingSession[] @relation("ExitCamera")
+  recognitions  PlateRecognition[]
+  
+  @@map("cameras")
+}
+
+enum CameraType {
+  ENTRY
+  EXIT
+  BOTH
+}
+
+enum CameraDirection {
+  IN
+  OUT
+}
+
+// Parking lots and floors
+model ParkingLot {
+  id            String   @id @default(cuid())
+  locationId    String
+  name          String
+  description   String?
+  totalCapacity Int
+  occupiedSpaces Int      @default(0)
+  floorNumber   Int?
+  section       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  location      ParkingLocation @relation(fields: [locationId], references: [id])
+  sessions      ParkingSession[]
+  status        ParkingStatus?
+  
+  @@map("parking_lots")
+}
+
+// User location assignments
+model UserLocation {
+  id            String   @id @default(cuid())
+  userId        String
+  locationId    String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user          User            @relation(fields: [userId], references: [id])
+  location      ParkingLocation @relation(fields: [locationId], references: [id])
+  
+  @@unique([userId, locationId])
+  @@map("user_locations")
+}
+
+// Real-time parking status
+model ParkingStatus {
+  id            String   @id @default(cuid())
+  lotId         String
+  totalCapacity Int
+  occupiedSpaces Int
+  availableSpaces Int
+  lastUpdated   DateTime @default(now())
+  
+  // Relations
+  lot           ParkingLot @relation(fields: [lotId], references: [id])
+  
+  @@unique([lotId])
+  @@map("parking_status")
+}
+
+// License plate recognition results
+model PlateRecognition {
+  id            String   @id @default(cuid())
+  sessionId     String?
+  cameraId      String
+  plateNumber   String
+  confidence    Float
+  croppedImage  String?
+  fullImage     String?
+  timestamp     DateTime @default(now())
+  processed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  // Relations
+  session       ParkingSession? @relation(fields: [sessionId], references: [id])
+  camera        Camera          @relation(fields: [cameraId], references: [id])
+  
+  @@map("plate_recognitions")
+}
+
+// Enhanced ParkingSession with parking lot support
+model ParkingSession {
+  id              String           @id @default(cuid())
+  plateNumber     String
+  entryTime       DateTime         @default(now())
+  exitTime        DateTime?
+  entryImage      String?
+  exitImage       String?
+  entryCameraId   String?
+  exitCameraId    String?
+  vehicleType     VehicleType      @default(CAR)
+  tariffId        String?
+  operatorId      String?
+  shiftId         String?
+  lotId           String?          // Parking lot assignment
+  status          SessionStatus    @default(ACTIVE)
+  totalAmount     Float            @default(0)
+  paidAmount      Float            @default(0)
+  isPaid          Boolean          @default(false)
+  paymentMethod   PaymentMethod?
+  creditAccountId String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  vehicle         Vehicle?         @relation(fields: [plateNumber], references: [plateNumber])
+  tariff          Tariff?          @relation(fields: [tariffId], references: [id])
+  operator        User?            @relation("OperatorSessions", fields: [operatorId], references: [id])
+  shift           Shift?           @relation(fields: [shiftId], references: [id])
+  payments        Payment[]
+  events          SessionEvent[]
+  creditAccount   CreditAccount?   @relation(fields: [creditAccountId], references: [id])
+  lot             ParkingLot?      @relation(fields: [lotId], references: [id])
+  entryCamera     Camera?          @relation("EntryCamera", fields: [entryCameraId], references: [id])
+  exitCamera      Camera?          @relation("ExitCamera", fields: [exitCameraId], references: [id])
+  recognitions    PlateRecognition[]
+  
+  @@map("parking_sessions")
+}
+
+// Persian calendar holidays
+model Holiday {
+  id            String    @id @default(cuid())
+  name          String
+  date          DateTime  // Stored in Gregorian but represents Persian date
+  isRecurring   Boolean   @default(true) // Yearly recurring holiday
+  type          HolidayType @default(OFFICIAL)
+  description   String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tariffRules   HolidayTariffRule[]
+  
+  @@map("holidays")
+}
+
+enum HolidayType {
+  OFFICIAL
+  RELIGIOUS
+  CUSTOM
+}
+
+// Holiday-specific tariff rules
+model HolidayTariffRule {
+  id          String   @id @default(cuid())
+  holidayId   String
+  tariffId    String
+  multiplier  Float    @default(1.0) // Rate multiplier for this holiday
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  holiday     Holiday  @relation(fields: [holidayId], references: [id])
+  tariff      Tariff   @relation(fields: [tariffId], references: [id])
+  
+  @@unique([holidayId, tariffId])
+  @@map("holiday_tariff_rules")
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  LOST_TICKET
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  POS
+  ONLINE
+  CREDIT
+}
+
+// Payment records
+model Payment {
+  id              String        @id @default(cuid())
+  sessionId       String
+  amount          Float
+  paymentMethod   PaymentMethod
+  transactionId   String?
+  operatorId      String?
+  shiftId         String?
+  status          PaymentStatus @default(COMPLETED)
+  receiptNumber   String?
+  receiptData     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  session         ParkingSession @relation(fields: [sessionId], references: [id])
+  operator        User?          @relation(fields: [operatorId], references: [id])
+  shift           Shift?         @relation(fields: [shiftId], references: [id])
+  
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Session events for tracking
+model SessionEvent {
+  id          String        @id @default(cuid())
+  sessionId   String
+  eventType   EventType
+  eventData   String?
+  timestamp   DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  session     ParkingSession @relation(fields: [sessionId], references: [id])
+  
+  @@map("session_events")
+}
+
+enum EventType {
+  ENTRY_DETECTED
+  ENTRY_PROCESSED
+  EXIT_DETECTED
+  EXIT_PROCESSED
+  PAYMENT_RECEIVED
+  BARRIER_OPENED
+  BARRIER_CLOSED
+  ERROR_OCCURRED
+  MANUAL_OVERRIDE
+}
+
+// Audit logging
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  oldValues   String?
+  newValues   String?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
+}
+
+// Shift reports
+model ShiftReport {
+  id              String   @id @default(cuid())
+  shiftId         String
+  totalSessions   Int      @default(0)
+  completedSessions Int    @default(0)
+  totalRevenue    Float    @default(0)
+  cashRevenue     Float    @default(0)
+  cardRevenue     Float    @default(0)
+  onlineRevenue   Float    @default(0)
+  averageDuration Float?
+  peakHours       String?
+  notes           String?
+  generatedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  // Relations
+  shift           Shift    @relation(fields: [shiftId], references: [id])
+  
+  @@map("shift_reports")
+}
+
+// System settings
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String   @default("general")
+  isSystem    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+  
+  @@map("settings")
+}
+
+// Backup system
+model Backup {
+  id            String      @id @default(cuid())
+  filename      String
+  filePath      String
+  fileSize      Int
+  backupType    BackupType  @default(MANUAL)
+  status        BackupStatus @default(COMPLETED)
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  error         String?
+  createdBy     String?
+  createdAt     DateTime    @default(now())
+
+  @@map("backups")
+}
+
+enum BackupType {
+  MANUAL
+  AUTOMATIC
+  SCHEDULED
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// Enhanced reports
+model VehicleExitReport {
+  id            String   @id @default(cuid())
+  plateNumber   String
+  entryTime     DateTime
+  entryCameraId String?
+  duration      Int      // in minutes
+  estimatedAmount Float
+  reportDate    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  
+  @@map("vehicle_exit_reports")
+}
+
+// Management reports
+model ManagementReport {
+  id              String   @id @default(cuid())
+  reportType      ReportType
+  title           String
+  description     String?
+  dateRange       String   // JSON string with start and end dates
+  data            String   // JSON string with report data
+  generatedBy     String?
+  generatedAt     DateTime @default(now())
+  
+  @@map("management_reports")
+}
+
+enum ReportType {
+  HOURLY_USAGE
+  DAILY_USAGE
+  WEEKLY_USAGE
+  MONTHLY_USAGE
+  YEARLY_USAGE
+  SHIFT_PERFORMANCE
+  OPERATOR_PERFORMANCE
+  REVENUE_ANALYSIS
+  PEAK_HOURS_ANALYSIS
+  CUSTOMER_RETENTION
+}
+
+// Real-time counters
+model RealTimeCounter {
+  id              String   @id @default(cuid())
+  totalCapacity   Int
+  occupiedSpaces  Int
+  availableSpaces Int
+  entriesToday    Int
+  exitsToday      Int
+  revenueToday    Float
+  lastUpdated     DateTime @default(now())
+  
+  @@map("real_time_counters")
+}
+
+// Customer traffic history
+model CustomerTraffic {
+  id            String   @id @default(cuid())
+  plateNumber   String
+  entryTime     DateTime
+  exitTime      DateTime?
+  duration      Int?     // in minutes
+  amount        Float?
+  vehicleType   VehicleType @default(CAR)
+  createdAt     DateTime @default(now())
+  
+  @@map("customer_traffic")
+}
+
+// Receipt configuration
+model ReceiptConfig {
+  id            String   @id @default(cuid())
+  complexName   String   @default("پارکینگ هوشمند")
+  address       String?
+  phone         String?
+  footerText    String?
+  showEntryTime Boolean  @default(true)
+  showExitTime  Boolean  @default(true)
+  showAmount    Boolean  @default(true)
+  roundingRule  RoundingRule @default(NEAREST_1000)
+  isActive      Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+  
+  @@map("receipt_configs")
+}
+
+enum RoundingRule {
+  NEAREST_1000
+  NEAREST_500
+  NEAREST_100
+  NO_ROUNDING
+}
+
+// User permissions
+model Permission {
+  id            String      @id @default(cuid())
+  name          String      @unique
+  description   String?
+  resource      String
+  action        String
+  createdAt     DateTime    @default(now())
+  
+  @@map("permissions")
+}
+
+// Role permissions
+model RolePermission {
+  id            String      @id @default(cuid())
+  userRole      UserRole
+  permissionId  String
+  createdAt     DateTime    @default(now())
+  
+  @@unique([userRole, permissionId])
+  @@map("role_permissions")
+}
+
+// Hardware configuration
+model Hardware {
+  id          String        @id @default(cuid())
+  name        String
+  type        HardwareType
+  ipAddress   String?
+  port        Int?
+  config      String?
+  isActive    Boolean       @default(true)
+  lastSeen    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@map("hardware")
+}
+
+enum HardwareType {
+  CAMERA_ENTRY
+  CAMERA_EXIT
+  BARRIER_ENTRY
+  BARRIER_EXIT
+  PRINTER
+  LED_DISPLAY
+  POS_TERMINAL
+  LOOP_DETECTOR
+}
