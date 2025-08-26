@@ -38,42 +38,9 @@ import { NavigationMenuCustom } from "@/components/navigation-menu-custom";
 import { useAuth } from "@/lib/auth-context";
 import AuthGuard from "@/components/auth-guard";
 
-// Main Dashboard Component
-function EnhancedParkingDashboard() {
-  const { user, currentLocation, currentGate, logout } = useAuth();
-  const [entryCameraActive, setEntryCameraActive] = useState(true);
-  const [exitCameraActive, setExitCameraActive] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [selectedSession, setSelectedSession] = useState<any>(null);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-
-  // Optimized Persian date formatter
-  const formatPersianDate = useMemo(() => {
-    return (date: Date | string, format: string = "YYYY/MM/DD HH:mm"): string => {
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
-      const options: Intl.DateTimeFormatOptions = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      };
-      return new Intl.DateTimeFormat('fa-IR', options).format(dateObj);
-    };
-  }, []);
-
-  // Optimized Persian numerals converter
-  const toPersianNumerals = useMemo(() => {
-    return (num: number | string): string => {
-      const str = num.toString();
-      const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
-      return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
-    };
-  }, []);
-
-  // Mock data using useMemo
-  const mockData = useMemo(() => ({
+// Mock data hook
+const useMockData = () => {
+  return useMemo(() => ({
     parkingLots: [
       {
         id: "1",
@@ -147,8 +114,7 @@ function EnhancedParkingDashboard() {
       }
     ]
   }), []);
-
-  const { parkingLots, cameras, sessions } = mockData;
+};
 
 interface CameraFrameProps {
   title: string;
@@ -163,6 +129,15 @@ const CameraFrame = React.memo(({ title, type, isActive, onToggle, onDetection }
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [lastDetection, setLastDetection] = useState<any>(null);
   const [isDetecting, setIsDetecting] = useState(false);
+
+  // Optimized Persian numerals converter
+  const toPersianNumerals = useMemo(() => {
+    return (num: number | string): string => {
+      const str = num.toString();
+      const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+      return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
+    };
+  }, []);
 
   const simulateDetection = useCallback(async () => {
     if (!isActive) return;
@@ -328,6 +303,15 @@ interface ParkingLotCardProps {
 }
 
 const ParkingLotCard = React.memo(({ lot }: ParkingLotCardProps) => {
+  // Optimized Persian numerals converter
+  const toPersianNumerals = useMemo(() => {
+    return (num: number | string): string => {
+      const str = num.toString();
+      const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+      return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
+    };
+  }, []);
+
   const occupancyRate = (lot.occupiedSpaces / lot.totalCapacity) * 100;
   const availableSpaces = lot.totalCapacity - lot.occupiedSpaces;
   
@@ -398,6 +382,31 @@ function EnhancedParkingDashboard() {
 
   const { parkingLots, cameras, sessions } = useMockData();
 
+  // Optimized Persian date formatter
+  const formatPersianDate = useMemo(() => {
+    return (date: Date | string, format: string = "YYYY/MM/DD HH:mm"): string => {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      return new Intl.DateTimeFormat('fa-IR', options).format(dateObj);
+    };
+  }, []);
+
+  // Optimized Persian numerals converter
+  const toPersianNumerals = useMemo(() => {
+    return (num: number | string): string => {
+      const str = num.toString();
+      const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+      return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
+    };
+  }, []);
+
   // Memoized stats calculation
   const stats = useMemo(() => ({
     totalCapacity: parkingLots.reduce((sum, lot) => sum + lot.totalCapacity, 0),
@@ -460,75 +469,51 @@ function EnhancedParkingDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600">ظرفیت کل</p>
-                  <p className="text-lg font-bold">{toPersianNumerals(stats.totalCapacity)}</p>
+                  <p className="text-sm text-gray-600">ظرفیت کل</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(stats.totalCapacity)}</p>
                 </div>
-                <Car className="h-6 w-6 text-blue-500" />
+                <Building className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600">فضای اشغالی</p>
-                  <p className="text-lg font-bold text-orange-500">
-                    {toPersianNumerals(stats.occupiedSpaces)}
-                  </p>
+                  <p className="text-sm text-gray-600">اشغال شده</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(stats.occupiedSpaces)}</p>
                 </div>
-                <div className="h-6 w-6 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 font-semibold text-xs">
-                    {Math.round((stats.occupiedSpaces / stats.totalCapacity) * 100)}%
-                  </span>
-                </div>
+                <Car className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600">جای خالی</p>
-                  <p className="text-lg font-bold text-green-600">
-                    {toPersianNumerals(stats.totalCapacity - stats.occupiedSpaces)}
-                  </p>
+                  <p className="text-sm text-gray-600">جلسات امروز</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(stats.todaySessions)}</p>
                 </div>
-                <ParkingCircle className="h-6 w-6 text-green-500" />
+                <Activity className="h-8 w-8 text-orange-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600">تعداد خودروها</p>
-                  <p className="text-lg font-bold text-blue-600">
-                    {toPersianNumerals(stats.activeSessions)}
-                  </p>
+                  <p className="text-sm text-gray-600">درآمد امروز</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(stats.todayRevenue)}</p>
                 </div>
-                <Activity className="h-6 w-6 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">درآمد امروز</p>
-                  <p className="text-lg font-bold text-green-600">
-                    {toPersianNumerals(stats.todayRevenue)}
-                  </p>
-                </div>
-                <CreditCard className="h-6 w-6 text-green-500" />
+                <CreditCard className="h-8 w-8 text-purple-500" />
               </div>
             </CardContent>
           </Card>
@@ -536,128 +521,122 @@ function EnhancedParkingDashboard() {
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Camera Section */}
+          {/* Camera Feeds */}
           <div className="lg:col-span-2 space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Camera className="h-5 w-5" />
-                  دوربین‌های فعال
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <CameraFrame
-                    title="دوربین ورودی"
-                    type="entry"
-                    isActive={entryCameraActive}
-                    onToggle={() => setEntryCameraActive(!entryCameraActive)}
-                    onDetection={handlePlateDetection}
-                  />
-                  <CameraFrame
-                    title="دوربین خروجی"
-                    type="exit"
-                    isActive={exitCameraActive}
-                    onToggle={() => setExitCameraActive(!exitCameraActive)}
-                    onDetection={handlePlateDetection}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CameraFrame
+                title="دوربین ورودی"
+                type="entry"
+                isActive={entryCameraActive}
+                onToggle={() => setEntryCameraActive(!entryCameraActive)}
+                onDetection={handlePlateDetection}
+              />
+              
+              <CameraFrame
+                title="دوربین خروجی"
+                type="exit"
+                isActive={exitCameraActive}
+                onToggle={() => setExitCameraActive(!exitCameraActive)}
+                onDetection={handlePlateDetection}
+              />
+            </div>
+            
             {/* Active Sessions */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
                   جلسات فعال
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
+                <div className="space-y-3">
                   {sessions.map((session) => (
                     <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-medium">{session.plateNumber}</p>
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Car className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{session.plateNumber}</p>
                           <p className="text-sm text-gray-600">{session.lotName}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatPersianDate(session.entryTime, "HH:mm")}
-                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">
-                          {toPersianNumerals(session.duration)} دقیقه
-                        </Badge>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handlePayment(session)}
-                          disabled={session.paidAmount >= session.amount}
-                        >
-                          پرداخت
-                        </Button>
+                      <div className="text-right">
+                        <p className="font-semibold">{toPersianNumerals(session.amount)} تومان</p>
+                        <p className="text-sm text-gray-600">{toPersianNumerals(session.duration)} دقیقه</p>
                       </div>
+                      <Button
+                        onClick={() => handlePayment(session)}
+                        size="sm"
+                      >
+                        پرداخت
+                      </Button>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* Parking Lots */}
+          
+          {/* Parking Lots Status */}
           <div className="space-y-4">
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Building className="h-5 w-5" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ParkingCircle className="h-5 w-5" />
                   وضعیت پارکینگ
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {parkingLots.map((lot) => (
-                    <ParkingLotCard key={lot.id} lot={lot} />
-                  ))}
-                </div>
+              <CardContent className="space-y-3">
+                {parkingLots.map((lot) => (
+                  <ParkingLotCard key={lot.id} lot={lot} />
+                ))}
               </CardContent>
             </Card>
-
-            {/* Quick Actions */}
+            
+            {/* System Status */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
-                  دسترسی سریع
+                  وضعیت سیستم
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <BarChart3 className="h-4 w-4 ml-1" />
-                    گزارش‌ها
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Users className="h-4 w-4 ml-1" />
-                    کاربران
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Settings className="h-4 w-4 ml-1" />
-                    تنظیمات
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <CreditCard className="h-4 w-4 ml-1" />
-                    پرداخت‌ها
-                  </Button>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">دوربین ورودی</span>
+                  <Badge variant={entryCameraActive ? "default" : "destructive"}>
+                    {entryCameraActive ? "فعال" : "غیرفعال"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">دوربین خروجی</span>
+                  <Badge variant={exitCameraActive ? "default" : "destructive"}>
+                    {exitCameraActive ? "فعال" : "غیرفعال"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">صدا</span>
+                  <Badge variant={soundEnabled ? "default" : "secondary"}>
+                    {soundEnabled ? "فعال" : "غیرفعال"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">شبکه</span>
+                  <Badge variant="default">
+                    <Wifi className="h-3 w-3 ml-1" />
+                    متصل
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
+        
         {/* Payment Dialog */}
         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>پرداخت پارکینگ</DialogTitle>
             </DialogHeader>

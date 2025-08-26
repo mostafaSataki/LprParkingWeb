@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -18,7 +17,7 @@ import {
   Wifi, 
   WifiOff,
   Camera,
-  Gate,
+  DoorOpen,
   Edit,
   Trash2,
   Play,
@@ -40,8 +39,6 @@ interface Gate {
   type: "ENTRY" | "EXIT";
   direction: "IN" | "OUT";
   isActive: boolean;
-  ipAddress?: string;
-  port?: number;
   locationId: string;
   locationName: string;
   cameras: Camera[];
@@ -57,6 +54,7 @@ interface Camera {
   type: "ENTRY" | "EXIT";
   isActive: boolean;
   ipAddress?: string;
+  port?: number;
   rtspUrl?: string;
   resolution?: string;
   fps?: number;
@@ -69,14 +67,17 @@ interface CreateGateDialogProps {
   locations: Array<{ id: string; name: string }>;
 }
 
+interface CreateCameraDialogProps {
+  onCameraCreated: () => void;
+  gates: Array<{ id: string; name: string; locationName: string }>;
+}
+
 function CreateGateDialog({ onGateCreated, locations }: CreateGateDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     type: "",
-    locationId: "",
-    ipAddress: "",
-    port: ""
+    locationId: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -90,7 +91,7 @@ function CreateGateDialog({ onGateCreated, locations }: CreateGateDialogProps) {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      setFormData({ name: "", type: "", locationId: "", ipAddress: "", port: "" });
+      setFormData({ name: "", type: "", locationId: "" });
       setIsOpen(false);
       onGateCreated();
     } catch (err) {
@@ -160,25 +161,6 @@ function CreateGateDialog({ onGateCreated, locations }: CreateGateDialogProps) {
             </Select>
           </div>
           
-          <div>
-            <Label htmlFor="ipAddress">آدرس IP (اختیاری)</Label>
-            <Input
-              value={formData.ipAddress}
-              onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-              placeholder="192.168.1.100"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="port">پورت (اختیاری)</Label>
-            <Input
-              type="number"
-              value={formData.port}
-              onChange={(e) => setFormData({ ...formData, port: e.target.value })}
-              placeholder="8080"
-            />
-          </div>
-
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -193,6 +175,207 @@ function CreateGateDialog({ onGateCreated, locations }: CreateGateDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setIsOpen(false)}
+            >
+              انصراف
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateCameraDialog({ onCameraCreated, gates }: CreateCameraDialogProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "",
+    gateId: "",
+    ipAddress: "",
+    port: "",
+    rtspUrl: ""
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Filter gates based on search term (by gate name or location name)
+  const filteredGates = gates.filter(gate => 
+    gate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    gate.locationName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter gates by IP address (search in existing cameras)
+  const gatesByIp = gates.filter(gate => {
+    if (!searchTerm.startsWith("192.168.")) return false;
+    // This would normally search through existing cameras, but for demo we'll simulate
+    return true; // In real app, you'd search through existing camera IPs
+  });
+
+  const combinedResults = searchTerm.startsWith("192.168.") 
+    ? [...filteredGates, ...gatesByIp] 
+    : filteredGates;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setFormData({ name: "", type: "", gateId: "", ipAddress: "", port: "", rtspUrl: "" });
+      setSearchTerm("");
+      setIsOpen(false);
+      onCameraCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در ایجاد دوربین");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectedGate = gates.find(g => g.id === formData.gateId);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Plus className="h-3 w-3 ml-1" />
+          دوربین جدید
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>ایجاد دوربین جدید</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Gate Selection with Search */}
+          <div>
+            <Label htmlFor="gateSearch">جستجو و انتخاب درب</Label>
+            <div className="space-y-2">
+              <Input
+                id="gateSearch"
+                placeholder="جستجو بر اساس نام درب، پارکینگ یا IP (مثال: 192.168.1.101)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              
+              {searchTerm && (
+                <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
+                  {combinedResults.length > 0 ? (
+                    combinedResults.map((gate) => (
+                      <div
+                        key={gate.id}
+                        className={`p-2 rounded cursor-pointer hover:bg-gray-100 ${
+                          formData.gateId === gate.id ? 'bg-blue-100 border-blue-500' : 'border-gray-200'
+                        } border`}
+                        onClick={() => {
+                          setFormData({ ...formData, gateId: gate.id });
+                          setSearchTerm("");
+                        }}
+                      >
+                        <div className="font-medium">{gate.name}</div>
+                        <div className="text-sm text-gray-500">{gate.locationName}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 p-2">
+                      نتیجه‌ای یافت نشد
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {selectedGate && (
+                <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                  <div className="font-medium text-blue-900">درب انتخاب شده:</div>
+                  <div className="text-blue-700">{selectedGate.name} - {selectedGate.locationName}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="name">نام دوربین</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="مثال: دوربین ورودی اصلی"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="type">نوع دوربین</Label>
+            <Select
+              value={formData.type}
+              onValueChange={(value) => setFormData({ ...formData, type: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="انتخاب نوع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ENTRY">ورودی</SelectItem>
+                <SelectItem value="EXIT">خروجی</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="ipAddress">آدرس IP</Label>
+            <Input
+              value={formData.ipAddress}
+              onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+              placeholder="192.168.1.100"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="port">پورت</Label>
+            <Input
+              type="number"
+              value={formData.port}
+              onChange={(e) => setFormData({ ...formData, port: e.target.value })}
+              placeholder="554"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="rtspUrl">آدرس RTSP (اختیاری)</Label>
+            <Input
+              value={formData.rtspUrl}
+              onChange={(e) => setFormData({ ...formData, rtspUrl: e.target.value })}
+              placeholder="rtsp://192.168.1.100:554/stream"
+            />
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex gap-2">
+            <Button 
+              type="submit" 
+              disabled={loading || !formData.gateId} 
+              className="flex-1"
+            >
+              {loading ? "در حال ایجاد..." : "ایجاد دوربین"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false);
+                setSearchTerm("");
+                setFormData({ name: "", type: "", gateId: "", ipAddress: "", port: "", rtspUrl: "" });
+              }}
             >
               انصراف
             </Button>
@@ -233,6 +416,7 @@ export default function GatesManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [simulationActive, setSimulationActive] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Mock locations
   const locations = [
@@ -249,8 +433,6 @@ export default function GatesManagementPage() {
       type: "ENTRY",
       direction: "IN",
       isActive: true,
-      ipAddress: "192.168.1.201",
-      port: 9000,
       locationId: "1",
       locationName: "پارکینگ مرکزی",
       cameras: [
@@ -260,6 +442,7 @@ export default function GatesManagementPage() {
           type: "ENTRY", 
           isActive: true, 
           ipAddress: "192.168.1.101",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.101:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -277,8 +460,6 @@ export default function GatesManagementPage() {
       type: "EXIT",
       direction: "OUT",
       isActive: true,
-      ipAddress: "192.168.1.202",
-      port: 9000,
       locationId: "1",
       locationName: "پارکینگ مرکزی",
       cameras: [
@@ -288,6 +469,7 @@ export default function GatesManagementPage() {
           type: "EXIT", 
           isActive: true, 
           ipAddress: "192.168.1.102",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.102:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -305,8 +487,6 @@ export default function GatesManagementPage() {
       type: "ENTRY",
       direction: "IN",
       isActive: true,
-      ipAddress: "192.168.1.203",
-      port: 9000,
       locationId: "2",
       locationName: "پارکینگ غرب",
       cameras: [
@@ -316,6 +496,7 @@ export default function GatesManagementPage() {
           type: "ENTRY", 
           isActive: true, 
           ipAddress: "192.168.1.103",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.103:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -333,8 +514,6 @@ export default function GatesManagementPage() {
       type: "EXIT",
       direction: "OUT",
       isActive: false,
-      ipAddress: "192.168.1.204",
-      port: 9000,
       locationId: "2",
       locationName: "پارکینگ غرب",
       cameras: [
@@ -344,6 +523,7 @@ export default function GatesManagementPage() {
           type: "EXIT", 
           isActive: false, 
           ipAddress: "192.168.1.104",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.104:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -361,8 +541,6 @@ export default function GatesManagementPage() {
       type: "ENTRY",
       direction: "IN",
       isActive: true,
-      ipAddress: "192.168.1.205",
-      port: 9000,
       locationId: "3",
       locationName: "پارکینگ شرق",
       cameras: [
@@ -372,6 +550,7 @@ export default function GatesManagementPage() {
           type: "ENTRY", 
           isActive: true, 
           ipAddress: "192.168.1.105",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.105:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -389,8 +568,6 @@ export default function GatesManagementPage() {
       type: "EXIT",
       direction: "OUT",
       isActive: true,
-      ipAddress: "192.168.1.206",
-      port: 9000,
       locationId: "3",
       locationName: "پارکینگ شرق",
       cameras: [
@@ -400,6 +577,7 @@ export default function GatesManagementPage() {
           type: "EXIT", 
           isActive: true, 
           ipAddress: "192.168.1.106",
+          port: 554,
           rtspUrl: "rtsp://192.168.1.106:554/stream",
           resolution: "1920x1080",
           fps: 30,
@@ -482,13 +660,38 @@ export default function GatesManagementPage() {
     return user?.assignedGates.includes(gate.id);
   });
 
+  // Search functionality
+  const searchFilteredGates = filteredGates.filter(gate => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search by gate name
+    if (gate.name.toLowerCase().includes(searchLower)) return true;
+    
+    // Search by location name
+    if (gate.locationName.toLowerCase().includes(searchLower)) return true;
+    
+    // Search by camera IP
+    if (searchTerm.startsWith("192.168.")) {
+      return gate.cameras.some(camera => 
+        camera.ipAddress?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Search by camera name
+    return gate.cameras.some(camera => 
+      camera.name.toLowerCase().includes(searchLower)
+    );
+  });
+
   const stats = useMemo(() => ({
-    totalGates: gates.length,
-    activeGates: gates.filter(g => g.isActive).length,
-    onlineGates: gates.filter(g => g.status === "ONLINE").length,
-    totalCameras: gates.reduce((sum, gate) => sum + gate.cameras.length, 0),
-    activeCameras: gates.reduce((sum, gate) => sum + gate.cameras.filter(c => c.isActive).length, 0)
-  }), [gates]);
+    totalGates: filteredGates.length,
+    activeGates: filteredGates.filter(g => g.isActive).length,
+    onlineGates: filteredGates.filter(g => g.status === "ONLINE").length,
+    totalCameras: filteredGates.reduce((sum, gate) => sum + gate.cameras.length, 0),
+    activeCameras: filteredGates.reduce((sum, gate) => sum + gate.cameras.filter(c => c.isActive).length, 0)
+  }), [filteredGates]);
 
   if (loading) {
     return (
@@ -538,7 +741,7 @@ export default function GatesManagementPage() {
                   <p className="text-sm text-gray-600">کل درب‌ها</p>
                   <p className="text-2xl font-bold">{toPersianNumerals(stats.totalGates)}</p>
                 </div>
-                <Gate className="h-8 w-8 text-blue-500" />
+                <DoorOpen className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
@@ -602,62 +805,123 @@ export default function GatesManagementPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Gate className="h-5 w-5" />
+              <DoorOpen className="h-5 w-5" />
               لیست درب‌ها
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Search Section */}
+            <div className="mb-4">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="gateSearch" className="text-sm font-medium text-gray-700 mb-2">
+                    جستجو در درب‌ها و دوربین‌ها
+                  </Label>
+                  <Input
+                    id="gateSearch"
+                    placeholder="جستجو بر اساس نام درب، پارکینگ، IP دوربین (مثال: 192.168.1.101)..."
+                    className="w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 ml-2" />
+                  به‌روزرسانی
+                </Button>
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                می‌توانید بر اساس نام درب، نام پارکینگ یا آدرس IP دوربین جستجو کنید
+                {searchTerm && (
+                  <span className="mr-2 text-blue-600">
+                    • {searchFilteredGates.length} نتیجه یافت شد
+                  </span>
+                )}
+              </div>
+            </div>
+            
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>نام درب</TableHead>
-                    <TableHead>نوع</TableHead>
-                    <TableHead>پارکینگ</TableHead>
-                    <TableHead>وضعیت</TableHead>
-                    <TableHead>دوربین‌ها</TableHead>
-                    <TableHead>آخرین فعالیت</TableHead>
-                    <TableHead>عملیات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredGates.map((gate) => (
-                    <TableRow key={gate.id}>
-                      <TableCell className="font-medium">{gate.name}</TableCell>
-                      <TableCell>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      نام درب
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      نوع
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      پارکینگ
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                      وضعیت
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      دوربین‌ها
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      همگام‌سازی
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      آخرین فعالیت
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                      عملیات
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {searchFilteredGates.map((gate) => (
+                    <tr key={gate.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-gray-900">
+                        {gate.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Badge variant={gate.type === "ENTRY" ? "default" : "secondary"}>
                           {getGateTypeLabel(gate.type)}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center gap-2 justify-end">
                           <Building className="h-4 w-4" />
                           {gate.locationName}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center gap-2 justify-end">
                           <Badge variant={getStatusBadgeVariant(gate.status)}>
                             {getStatusLabel(gate.status)}
                           </Badge>
                           {gate.status === "ONLINE" && <Wifi className="h-3 w-3 text-green-500" />}
                           {gate.status === "OFFLINE" && <WifiOff className="h-3 w-3 text-gray-400" />}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center gap-1 justify-end">
                           <Camera className="h-3 w-3" />
                           <span>{toPersianNumerals(gate.cameras.length)}</span>
                           <span className="text-xs text-gray-500">
                             ({toPersianNumerals(gate.cameras.filter(c => c.isActive).length)} فعال)
                           </span>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          {gate.status === "ONLINE" ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 text-gray-400" />
+                          )}
+                          <span className="text-sm">
+                            {gate.status === "ONLINE" ? "همگام" : "در انتظار"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                         {gate.lastSeen ? formatPersianDate(gate.lastSeen, "HH:mm") : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center gap-2 justify-end">
                           <Button
                             variant={gate.isActive ? "default" : "outline"}
                             size="sm"
@@ -665,15 +929,29 @@ export default function GatesManagementPage() {
                           >
                             <Power className="h-3 w-3" />
                           </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              // Manual sync simulation
+                              setGates(prev => prev.map(g => 
+                                g.id === gate.id 
+                                  ? { ...g, lastSeen: new Date().toISOString(), status: "ONLINE" }
+                                  : g
+                              ));
+                            }}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
                           <Button variant="outline" size="sm">
                             <Settings className="h-3 w-3" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
@@ -687,11 +965,11 @@ export default function GatesManagementPage() {
           
           <TabsContent value="cameras">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredGates.map((gate) => (
+              {searchFilteredGates.map((gate) => (
                 <Card key={gate.id}>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Gate className="h-5 w-5" />
+                      <DoorOpen className="h-5 w-5" />
                       {gate.name}
                     </CardTitle>
                     <div className="flex items-center gap-2">
@@ -711,6 +989,7 @@ export default function GatesManagementPage() {
                           <div>
                             <p className="font-medium text-sm">{camera.name}</p>
                             <p className="text-xs text-gray-500">{camera.resolution}</p>
+                            <p className="text-xs text-gray-400">{camera.ipAddress}:{camera.port}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -727,6 +1006,16 @@ export default function GatesManagementPage() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Add Camera Button */}
+                    <CreateCameraDialog 
+                      onCameraCreated={() => {}} 
+                      gates={filteredGates.map(gate => ({
+                        id: gate.id,
+                        name: gate.name,
+                        locationName: gate.locationName
+                      }))} 
+                    />
                   </CardContent>
                 </Card>
               ))}

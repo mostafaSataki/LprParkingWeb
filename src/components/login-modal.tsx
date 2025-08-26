@@ -13,8 +13,6 @@ import {
   User, 
   Lock, 
   MapPin, 
-  Building, 
-  Camera, 
   AlertCircle,
   CheckCircle,
   ArrowRight,
@@ -38,62 +36,38 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [formData, setFormData] = useState({
     username: "",
     password: "",
-    locationId: "",
     gateId: ""
   });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get available locations and gates from auth context
-  const availableLocations = [
-    {
-      id: "1",
-      name: "پارکینگ مرکزی",
-      description: "پارکینگ اصلی مرکز تجاری",
-      address: "میدان آزادی، خیابان آزادی",
-      isActive: true,
-      gates: [
-        { id: "1", name: "دریازه ورودی اصلی", type: "ENTRY", direction: "IN", isActive: true },
-        { id: "2", name: "دریازه خروجی اصلی", type: "EXIT", direction: "OUT", isActive: true }
-      ]
-    },
-    {
-      id: "2",
-      name: "پارکینگ غرب",
-      description: "پارکینگ مجتمع تجاری غرب",
-      address: "بلوار کشاورز، خیابان غربی",
-      isActive: true,
-      gates: [
-        { id: "3", name: "دریازه ورودی غرب", type: "ENTRY", direction: "IN", isActive: true },
-        { id: "4", name: "دریازه خروجی غرب", type: "EXIT", direction: "OUT", isActive: true }
-      ]
-    },
-    {
-      id: "3",
-      name: "پارکینگ شرق",
-      description: "پارکینگ مجتمع اداری شرق",
-      address: "خیابان امام خمینی، خیابان شرقی",
-      isActive: true,
-      gates: [
-        { id: "5", name: "دریازه ورودی شرق", type: "ENTRY", direction: "IN", isActive: true },
-        { id: "6", name: "دریازه خروجی شرق", type: "EXIT", direction: "OUT", isActive: true }
-      ]
-    }
+  // Get available gates for login (all gates from all locations)
+  const availableGates = [
+    // پارکینگ مرکزی
+    { id: "1", name: "دریازه ورودی اصلی", type: "ENTRY", direction: "IN", isActive: true, locationName: "پارکینگ مرکزی" },
+    { id: "2", name: "دریازه خروجی اصلی", type: "EXIT", direction: "OUT", isActive: true, locationName: "پارکینگ مرکزی" },
+    // پارکینگ غرب
+    { id: "3", name: "دریازه ورودی غرب", type: "ENTRY", direction: "IN", isActive: true, locationName: "پارکینگ غرب" },
+    { id: "4", name: "دریازه خروجی غرب", type: "EXIT", direction: "OUT", isActive: true, locationName: "پارکینگ غرب" },
+    // پارکینگ شرق
+    { id: "5", name: "دریازه ورودی شرق", type: "ENTRY", direction: "IN", isActive: true, locationName: "پارکینگ شرق" },
+    { id: "6", name: "دریازه خروجی شرق", type: "EXIT", direction: "OUT", isActive: true, locationName: "پارکینگ شرق" }
   ];
 
-  const selectedLocation = availableLocations.find(l => l.id === formData.locationId);
-  const availableGates = selectedLocation?.gates.filter(g => g.isActive) || [];
+  const selectedGate = availableGates.find(g => g.id === formData.gateId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
 
+    console.log('Form data being submitted:', formData);
+
     try {
       const success = await login(
         formData.username,
         formData.password,
-        formData.locationId,
+        "", // locationId is no longer needed
         formData.gateId
       );
 
@@ -110,19 +84,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   };
 
   const handleUsernameChange = (username: string) => {
-    setFormData({ ...formData, username, locationId: "", gateId: "" });
-    setError("");
-  };
-
-  const handleLocationChange = (locationId: string) => {
-    setFormData({ ...formData, locationId, gateId: "" });
+    setFormData({ ...formData, username });
     setError("");
   };
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setFormData({ username: "", password: "", locationId: "", gateId: "" });
+      setFormData({ username: "", password: "", gateId: "" });
       setError("");
     }
   }, [isOpen]);
@@ -168,55 +137,33 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>انتخاب پارکینگ</Label>
-                <Select
-                  value={formData.locationId}
-                  onValueChange={handleLocationChange}
-                  disabled={isSubmitting || !formData.username}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="پارکینگ را انتخاب کنید" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableLocations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        <div className="flex items-center gap-2">
-                          <Building className="h-4 w-4" />
-                          {location.name}
+            <div className="space-y-2">
+              <Label>انتخاب درب</Label>
+              <Select
+                value={formData.gateId}
+                onValueChange={(value) => setFormData({ ...formData, gateId: value })}
+                disabled={isSubmitting || !formData.username}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="درب را انتخاب کنید" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableGates.map((gate) => (
+                    <SelectItem key={gate.id} value={gate.id}>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <div>
+                          <span>{gate.name}</span>
+                          <div className="text-xs text-gray-500">{gate.locationName}</div>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>انتخاب درب</Label>
-                <Select
-                  value={formData.gateId}
-                  onValueChange={(value) => setFormData({ ...formData, gateId: value })}
-                  disabled={isSubmitting || !formData.locationId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="درب را انتخاب کنید" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableGates.map((gate) => (
-                      <SelectItem key={gate.id} value={gate.id}>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {gate.name}
-                          <Badge variant="outline" className="text-xs">
-                            {gate.type === "ENTRY" ? "ورودی" : "خروجی"}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                        <Badge variant="outline" className="text-xs">
+                          {gate.type === "ENTRY" ? "ورودی" : "خروجی"}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {error && (
@@ -230,7 +177,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <Button 
                 type="submit" 
                 className="flex-1"
-                disabled={isSubmitting || !formData.username || !formData.password || !formData.locationId || !formData.gateId}
+                disabled={isSubmitting || !formData.username || !formData.password || !formData.gateId}
               >
                 {isSubmitting ? (
                   <>
@@ -255,8 +202,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </div>
           </form>
 
-          {/* Selected Location & Gate Info */}
-          {selectedLocation && formData.gateId && (
+          {/* Selected Gate Info */}
+          {selectedGate && (
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2 text-blue-800">
@@ -265,39 +212,18 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm text-blue-700">
-                      <Building className="h-4 w-4" />
-                      <span className="font-medium">پارکینگ:</span>
-                    </div>
-                    <div className="mt-1">
-                      <p className="font-semibold text-blue-900">{selectedLocation.name}</p>
-                      <p className="text-sm text-blue-600">{selectedLocation.address}</p>
-                    </div>
+                <div>
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">درب:</span>
                   </div>
-                  
-                  <div>
-                    <div className="flex items-center gap-2 text-sm text-blue-700">
-                      <MapPin className="h-4 w-4" />
-                      <span className="font-medium">درب:</span>
-                    </div>
-                    <div className="mt-1">
-                      {availableGates.map(gate => 
-                        gate.id === formData.gateId && (
-                          <div key={gate.id}>
-                            <p className="font-semibold text-blue-900">{gate.name}</p>
-                            <div className="flex items-center gap-1 mt-1">
-                              <Badge variant={gate.type === "ENTRY" ? "default" : "secondary"} className="text-xs">
-                                {gate.type === "ENTRY" ? "ورودی" : "خروجی"}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {gate.gates?.length || 0} دوربین
-                              </Badge>
-                            </div>
-                          </div>
-                        )
-                      )}
+                  <div className="mt-1">
+                    <p className="font-semibold text-blue-900">{selectedGate.name}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Badge variant={selectedGate.type === "ENTRY" ? "default" : "secondary"} className="text-xs">
+                        {selectedGate.type === "ENTRY" ? "ورودی" : "خروجی"}
+                      </Badge>
+                      <span className="text-xs text-blue-600">{selectedGate.locationName}</span>
                     </div>
                   </div>
                 </div>
@@ -327,8 +253,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <div>
                   <h4 className="font-semibold text-amber-800 mb-2">دسترسی‌ها:</h4>
                   <div className="space-y-1 text-amber-700">
-                    <p>• اپراتورها: دسترسی به پارکینگ‌های اختصاصی</p>
-                    <p>• ناظر: دسترسی به تمام پارکینگ‌ها</p>
+                    <p>• اپراتورها: دسترسی به درب‌های اختصاصی</p>
+                    <p>• ناظر: دسترسی به تمام درب‌ها</p>
                     <p>• مدیر: دسترسی کامل به سیستم</p>
                   </div>
                 </div>

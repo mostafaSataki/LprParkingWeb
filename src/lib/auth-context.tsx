@@ -48,7 +48,6 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string, locationId: string, gateId: string) => Promise<boolean>;
   logout: () => void;
-  setLocation: (locationId: string) => void;
   setGate: (gateId: string) => void;
   refreshUser: () => void;
 }
@@ -197,45 +196,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         u.isActive
       );
 
+      console.log('Login attempt:', { username, password, gateId, foundUser });
+
       if (!foundUser) {
+        console.log('User not found or inactive');
         return false;
       }
 
       // Check password
       const correctPassword = mockPasswords[username];
+      console.log('Password check:', { input: password, correct: correctPassword, match: password === correctPassword });
       if (password !== correctPassword) {
+        console.log('Incorrect password');
         return false;
       }
 
-      // Check if user has access to selected location
-      if (!foundUser.assignedLocations.includes(locationId)) {
+      // Check if user has access to selected gate (ignore locationId)
+      console.log('User assigned gates:', foundUser.assignedGates);
+      console.log('Selected gate ID:', gateId);
+      console.log('Gate ID type:', typeof gateId);
+      console.log('Assigned gates type:', foundUser.assignedGates.map(g => typeof g));
+      
+      // More flexible gate access check
+      const hasAccess = foundUser.assignedGates.some(assignedGate => 
+        assignedGate.toString() === gateId.toString()
+      );
+      
+      console.log('Has access:', hasAccess);
+      
+      if (!hasAccess) {
+        console.log('User does not have access to this gate');
         return false;
       }
 
-      // Check if user has access to selected gate
-      if (!foundUser.assignedGates.includes(gateId)) {
-        return false;
+      // Find gate and its location
+      let selectedLocation: ParkingLocation | null = null;
+      let selectedGate: Gate | null = null;
+
+      // Find the gate and its location
+      for (const location of mockLocations) {
+        const gate = location.gates.find(g => g.id === gateId.toString());
+        if (gate && gate.isActive) {
+          selectedLocation = location;
+          selectedGate = gate;
+          break;
+        }
       }
 
-      // Find location and gate
-      const location = mockLocations.find(l => l.id === locationId);
-      const gate = location?.gates.find(g => g.id === gateId);
+      console.log('Found location:', selectedLocation?.name);
+      console.log('Found gate:', selectedGate?.name);
 
-      if (!location || !gate || !location.isActive || !gate.isActive) {
+      if (!selectedLocation || !selectedGate) {
+        console.log('Gate or location not found');
         return false;
       }
 
       // Login successful
       setUser(foundUser);
-      setCurrentLocation(location);
-      setCurrentGate(gate);
+      setCurrentLocation(selectedLocation);
+      setCurrentGate(selectedGate);
       setIsLoggedIn(true);
 
       // Save to localStorage
       localStorage.setItem('parkingUser', JSON.stringify(foundUser));
-      localStorage.setItem('parkingLocation', JSON.stringify(location));
-      localStorage.setItem('parkingGate', JSON.stringify(gate));
+      localStorage.setItem('parkingLocation', JSON.stringify(selectedLocation));
+      localStorage.setItem('parkingGate', JSON.stringify(selectedGate));
 
+      console.log('Login successful!');
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -257,35 +284,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('parkingGate');
   };
 
-  const setLocation = (locationId: string) => {
-    if (!user) return;
-    
-    if (!user.assignedLocations.includes(locationId)) {
-      console.error('User does not have access to this location');
-      return;
-    }
-
-    const location = mockLocations.find(l => l.id === locationId);
-    if (location && location.isActive) {
-      setCurrentLocation(location);
-      setCurrentGate(null); // Reset gate when location changes
-      localStorage.setItem('parkingLocation', JSON.stringify(location));
-      localStorage.removeItem('parkingGate');
-    }
-  };
-
   const setGate = (gateId: string) => {
-    if (!user || !currentLocation) return;
+    if (!user) return;
     
     if (!user.assignedGates.includes(gateId)) {
       console.error('User does not have access to this gate');
       return;
     }
 
-    const gate = currentLocation.gates.find(g => g.id === gateId);
-    if (gate && gate.isActive) {
-      setCurrentGate(gate);
-      localStorage.setItem('parkingGate', JSON.stringify(gate));
+    // Find gate and its location
+    for (const location of mockLocations) {
+      const gate = location.gates.find(g => g.id === gateId);
+      if (gate && gate.isActive) {
+        setCurrentLocation(location);
+        setCurrentGate(gate);
+        localStorage.setItem('parkingLocation', JSON.stringify(location));
+        localStorage.setItem('parkingGate', JSON.stringify(gate));
+        break;
+      }
     }
   };
 
@@ -308,7 +324,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     logout,
-    setLocation,
     setGate,
     refreshUser
   };
