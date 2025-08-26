@@ -33,6 +33,7 @@ model User {
   payments       Payment[]
   credits        CreditAccount[]
   locations      UserLocation[]
+  reservations   Reservation[]
   
   @@map("users")
 }
@@ -307,6 +308,7 @@ model ParkingLocation {
   cameras       Camera[]
   parkingLots   ParkingLot[]
   userLocations UserLocation[]
+  reservations  Reservation[]
   
   @@map("parking_locations")
 }
@@ -364,6 +366,8 @@ model ParkingLot {
   location      ParkingLocation @relation(fields: [locationId], references: [id])
   sessions      ParkingSession[]
   status        ParkingStatus?
+  parkingSpots  ParkingSpot[]
+  reservations  Reservation[]
   
   @@map("parking_lots")
 }
@@ -802,4 +806,157 @@ enum HardwareType {
   LED_DISPLAY
   POS_TERMINAL
   LOOP_DETECTOR
+}
+
+// Parking spot management for reservation system
+model ParkingSpot {
+  id            String      @id @default(cuid())
+  lotId         String
+  spotNumber    String
+  section       String?
+  floorNumber   Int?
+  type          SpotType    @default(STANDARD)
+  status        SpotStatus  @default(AVAILABLE)
+  isReserved    Boolean     @default(false)
+  isDisabled    Boolean     @default(false)
+  sensorId      String?
+  ledControl    String?
+  width         Float?      // in meters
+  length        Float?      // in meters
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  lot           ParkingLot  @relation(fields: [lotId], references: [id])
+  reservations  Reservation[]
+  
+  @@unique([lotId, spotNumber])
+  @@map("parking_spots")
+}
+
+enum SpotType {
+  STANDARD
+  WIDE
+  DISABLED
+  ELECTRIC
+  RESERVED
+  VIP
+}
+
+enum SpotStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  DISABLED
+  MAINTENANCE
+}
+
+// Parking reservation system
+model Reservation {
+  id              String            @id @default(cuid())
+  reservationCode String            @unique
+  customerId      String?
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  vehiclePlate    String?
+  vehicleType     VehicleType       @default(CAR)
+  spotId          String?
+  lotId           String
+  locationId      String
+  startTime       DateTime
+  endTime         DateTime
+  duration        Int               // in minutes
+  status          ReservationStatus @default(PENDING)
+  totalAmount     Float             @default(0)
+  paidAmount      Float             @default(0)
+  isPaid          Boolean           @default(false)
+  paymentMethod   PaymentMethod?
+  paymentId       String?
+  notes           String?
+  qrCode          String?
+  smsSent         Boolean           @default(false)
+  emailSent       Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  customer        User?             @relation(fields: [customerId], references: [id])
+  spot            ParkingSpot?      @relation(fields: [spotId], references: [id])
+  lot             ParkingLot        @relation(fields: [lotId], references: [id])
+  location        ParkingLocation  @relation(fields: [locationId], references: [id])
+  payments        ReservationPayment[]
+  smsMessages     ReservationSMS[]
+  
+  @@map("reservations")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  EXPIRED
+}
+
+// Reservation payment records
+model ReservationPayment {
+  id              String        @id @default(cuid())
+  reservationId   String
+  amount          Float
+  paymentMethod   PaymentMethod
+  transactionId   String?
+  status          PaymentStatus @default(PENDING)
+  receiptNumber   String?
+  receiptData     String?
+  gatewayResponse String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  reservation     Reservation   @relation(fields: [reservationId], references: [id])
+  
+  @@map("reservation_payments")
+}
+
+// SMS notification system for reservations
+model ReservationSMS {
+  id              String        @id @default(cuid())
+  reservationId   String
+  phoneNumber     String
+  message         String
+  type            SMSType
+  status          SMSStatus     @default(PENDING)
+  smsId           String?       // Provider SMS ID
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  error           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  reservation     Reservation   @relation(fields: [reservationId], references: [id])
+  
+  @@map("reservation_sms")
+}
+
+enum SMSType {
+  RESERVATION_CONFIRMATION
+  REMINDER_24H
+  REMINDER_1H
+  CANCELLATION
+  COMPLETION
+  PAYMENT_RECEIVED
+  GATE_ACCESS_CODE
+}
+
+enum SMSStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
 }

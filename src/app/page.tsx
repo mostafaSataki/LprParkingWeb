@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,107 +26,129 @@ import {
   Building,
   MapPin,
   CreditCard as PaymentIcon,
-  User
+  User,
+  Activity,
+  Wifi,
+  WifiOff,
+  Shield
 } from "lucide-react";
 import { PaymentProcessor } from "@/components/payment-processor";
 import { PaymentMethod } from "@/lib/payment-service";
 import { NavigationMenuCustom } from "@/components/navigation-menu-custom";
+import { useAuth } from "@/lib/auth-context";
+import AuthGuard from "@/components/auth-guard";
 
-// Simple Persian date formatter
-function formatPersianDate(date: Date | string, format: string = "YYYY/MM/DD HH:mm"): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  };
-  return new Intl.DateTimeFormat('fa-IR', options).format(dateObj);
-}
+// Main Dashboard Component
+function EnhancedParkingDashboard() {
+  const { user, currentLocation, currentGate, logout } = useAuth();
+  const [entryCameraActive, setEntryCameraActive] = useState(true);
+  const [exitCameraActive, setExitCameraActive] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
-function toPersianNumerals(num: number | string): string {
-  const str = num.toString();
-  const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
-  return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
-}
+  // Optimized Persian date formatter
+  const formatPersianDate = useMemo(() => {
+    return (date: Date | string, format: string = "YYYY/MM/DD HH:mm"): string => {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      return new Intl.DateTimeFormat('fa-IR', options).format(dateObj);
+    };
+  }, []);
 
-// Mock data for demonstration
-const mockParkingLots = [
-  {
-    id: "1",
-    name: "طبقه همکف",
-    totalCapacity: 50,
-    occupiedSpaces: 32,
-    floorNumber: 0,
-    section: "A"
-  },
-  {
-    id: "2", 
-    name: "طبقه اول",
-    totalCapacity: 40,
-    occupiedSpaces: 28,
-    floorNumber: 1,
-    section: "B"
-  },
-  {
-    id: "3",
-    name: "طبقه دوم", 
-    totalCapacity: 35,
-    occupiedSpaces: 15,
-    floorNumber: 2,
-    section: "C"
-  }
-];
+  // Optimized Persian numerals converter
+  const toPersianNumerals = useMemo(() => {
+    return (num: number | string): string => {
+      const str = num.toString();
+      const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+      return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);
+    };
+  }, []);
 
-const mockCameras = [
-  {
-    id: "1",
-    name: "دوربین ورودی اصلی",
-    type: "ENTRY",
-    direction: "IN",
-    isActive: true,
-    location: "ورودی اصلی"
-  },
-  {
-    id: "2",
-    name: "دوربین خروجی اصلی", 
-    type: "EXIT",
-    direction: "OUT",
-    isActive: true,
-    location: "خروجی اصلی"
-  }
-];
+  // Mock data using useMemo
+  const mockData = useMemo(() => ({
+    parkingLots: [
+      {
+        id: "1",
+        name: "طبقه همکف",
+        totalCapacity: 50,
+        occupiedSpaces: 32,
+        floorNumber: 0,
+        section: "A"
+      },
+      {
+        id: "2", 
+        name: "طبقه اول",
+        totalCapacity: 40,
+        occupiedSpaces: 28,
+        floorNumber: 1,
+        section: "B"
+      },
+      {
+        id: "3",
+        name: "طبقه دوم", 
+        totalCapacity: 35,
+        occupiedSpaces: 15,
+        floorNumber: 2,
+        section: "C"
+      }
+    ],
+    cameras: [
+      {
+        id: "1",
+        name: "دوربین ورودی اصلی",
+        type: "ENTRY",
+        direction: "IN",
+        isActive: true,
+        location: "ورودی اصلی"
+      },
+      {
+        id: "2",
+        name: "دوربین خروجی اصلی", 
+        type: "EXIT",
+        direction: "OUT",
+        isActive: true,
+        location: "خروجی اصلی"
+      }
+    ],
+    sessions: [
+      {
+        id: "1",
+        plateNumber: "۱۲۳۴۵۶۷۸",
+        entryTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        vehicleType: "CAR",
+        status: "ACTIVE",
+        duration: 120,
+        amount: 15000,
+        paidAmount: 0,
+        lotName: "طبقه همکف",
+        entryImage: "/api/placeholder/300/200",
+        croppedPlateImage: "/api/placeholder/150/80"
+      },
+      {
+        id: "2",
+        plateNumber: "۸۷۶۵۴۳۲۱",
+        entryTime: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        vehicleType: "CAR",
+        status: "ACTIVE",
+        duration: 60,
+        amount: 8000,
+        paidAmount: 0,
+        lotName: "طبقه اول",
+        entryImage: "/api/placeholder/300/200",
+        croppedPlateImage: "/api/placeholder/150/80"
+      }
+    ]
+  }), []);
 
-const mockSessions = [
-  {
-    id: "1",
-    plateNumber: "۱۲۳۴۵۶۷۸",
-    entryTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    vehicleType: "CAR",
-    status: "ACTIVE",
-    duration: 120,
-    amount: 15000,
-    paidAmount: 0,
-    lotName: "طبقه همکف",
-    entryImage: "/api/placeholder/300/200",
-    croppedPlateImage: "/api/placeholder/150/80"
-  },
-  {
-    id: "2",
-    plateNumber: "۸۷۶۵۴۳۲۱",
-    entryTime: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    vehicleType: "CAR",
-    status: "ACTIVE",
-    duration: 60,
-    amount: 8000,
-    paidAmount: 0,
-    lotName: "طبقه اول",
-    entryImage: "/api/placeholder/300/200",
-    croppedPlateImage: "/api/placeholder/150/80"
-  }
-];
+  const { parkingLots, cameras, sessions } = mockData;
 
 interface CameraFrameProps {
   title: string;
@@ -136,12 +158,13 @@ interface CameraFrameProps {
   onDetection?: (plateData: any) => void;
 }
 
-function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFrameProps) {
+// Optimized Camera Frame component
+const CameraFrame = React.memo(({ title, type, isActive, onToggle, onDetection }: CameraFrameProps) => {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [lastDetection, setLastDetection] = useState<any>(null);
   const [isDetecting, setIsDetecting] = useState(false);
 
-  const simulateDetection = async () => {
+  const simulateDetection = useCallback(async () => {
     if (!isActive) return;
     
     setIsDetecting(true);
@@ -151,7 +174,6 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
       { number: "۱۱۱۲۲۳۳", confidence: 0.88, name: "تیبا", parkingSpot: "C-12" }
     ];
     
-    // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const randomPlate = plates[Math.floor(Math.random() * plates.length)];
@@ -169,9 +191,8 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
       onDetection(detectionData);
     }
     
-    // Clear after 5 seconds
     setTimeout(() => setLastDetection(null), 5000);
-  };
+  }, [isActive, onDetection]);
 
   return (
     <Card className="h-full">
@@ -203,7 +224,6 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
         <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
           {isActive ? (
             <>
-              {/* Simulated camera feed */}
               <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                 <div className="text-center">
                   <Camera className="h-16 w-16 mx-auto mb-2 text-gray-400" />
@@ -212,7 +232,6 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
                 </div>
               </div>
               
-              {/* Debug overlay */}
               {isDebugMode && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 text-white p-2 text-xs font-mono">
                   <div>کد دوربین: {type === "entry" ? "CAM001" : "CAM002"}</div>
@@ -223,7 +242,6 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
                 </div>
               )}
               
-              {/* Detection overlay */}
               {isDetecting && (
                 <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
                   <div className="text-white text-center">
@@ -233,10 +251,8 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
                 </div>
               )}
               
-              {/* Plate detection result */}
               {lastDetection && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                  {/* Cropped plate image */}
                   <div className="mb-4 p-2 bg-white rounded-lg">
                     <img 
                       src={lastDetection.croppedImage} 
@@ -245,7 +261,6 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
                     />
                   </div>
                   
-                  {/* Plate info */}
                   <div className="bg-white rounded-lg p-4 text-center max-w-sm w-full">
                     <div className="space-y-2">
                       <div>
@@ -303,13 +318,16 @@ function CameraFrame({ title, type, isActive, onToggle, onDetection }: CameraFra
       </CardContent>
     </Card>
   );
-}
+});
 
+CameraFrame.displayName = 'CameraFrame';
+
+// Optimized Parking Lot Card component
 interface ParkingLotCardProps {
   lot: any;
 }
 
-function ParkingLotCard({ lot }: ParkingLotCardProps) {
+const ParkingLotCard = React.memo(({ lot }: ParkingLotCardProps) => {
   const occupancyRate = (lot.occupiedSpaces / lot.totalCapacity) * 100;
   const availableSpaces = lot.totalCapacity - lot.occupiedSpaces;
   
@@ -365,101 +383,107 @@ function ParkingLotCard({ lot }: ParkingLotCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
 
-export default function EnhancedParkingDashboard() {
+ParkingLotCard.displayName = 'ParkingLotCard';
+
+// Main Dashboard Component
+function EnhancedParkingDashboard() {
+  const { user, currentLocation, currentGate, logout } = useAuth();
   const [entryCameraActive, setEntryCameraActive] = useState(true);
   const [exitCameraActive, setExitCameraActive] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState("پارکینگ مرکزی");
-  const [currentUser, setCurrentUser] = useState({
-    id: "1",
-    name: "علی رضایی",
-    role: "OPERATOR",
-    location: "پارکینگ مرکزی"
-  });
 
-  const stats = {
-    totalCapacity: mockParkingLots.reduce((sum, lot) => sum + lot.totalCapacity, 0),
-    occupiedSpaces: mockParkingLots.reduce((sum, lot) => sum + lot.occupiedSpaces, 0),
+  const { parkingLots, cameras, sessions } = useMockData();
+
+  // Memoized stats calculation
+  const stats = useMemo(() => ({
+    totalCapacity: parkingLots.reduce((sum, lot) => sum + lot.totalCapacity, 0),
+    occupiedSpaces: parkingLots.reduce((sum, lot) => sum + lot.occupiedSpaces, 0),
     todaySessions: 45,
     todayRevenue: 1250000,
-    activeSessions: mockSessions.length
-  };
+    activeSessions: sessions.length
+  }), [parkingLots, sessions]);
 
-  // Function to handle plate detection
-  const handlePlateDetection = (plateData: any) => {
+  // Memoized handlers
+  const handlePlateDetection = useCallback((plateData: any) => {
     console.log("Plate detected:", plateData);
-    // Here you would typically save to database and update UI
-  };
+  }, []);
 
-  // Function to handle payment
-  const handlePayment = (session: any) => {
+  const handlePayment = useCallback((session: any) => {
     setSelectedSession(session);
     setIsPaymentDialogOpen(true);
-  };
+  }, []);
 
-  // Function to handle payment completion
-  const handlePaymentComplete = (payment: any) => {
+  const handlePaymentComplete = useCallback((payment: any) => {
     setIsPaymentDialogOpen(false);
     setSelectedSession(null);
-  };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto space-y-4 p-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between py-2">
           <div>
-            <h1 className="text-3xl font-bold">سیستم مدیریت پارکینگ هوشمند</h1>
+            <h1 className="text-2xl font-bold">سیستم مدیریت پارکینگ هوشمند</h1>
             <div className="flex items-center gap-4 mt-1">
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 {formatPersianDate(new Date(), "dddd، DD MMMM YYYY")}
               </p>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4" />
-                <span>{currentLocation}</span>
+                <span>{currentLocation?.name}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <User className="h-4 w-4" />
-                <span>{currentUser.name}</span>
-                <Badge variant="outline">{currentUser.role}</Badge>
+                <span>{user?.name}</span>
+                <Badge variant="outline">{user?.role}</Badge>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Shield className="h-4 w-4" />
+                <span>{currentGate?.name}</span>
               </div>
             </div>
           </div>
-          <NavigationMenuCustom 
-            soundEnabled={soundEnabled}
-            onSoundToggle={() => setSoundEnabled(!soundEnabled)}
-          />
+          <div className="flex items-center gap-2">
+            <NavigationMenuCustom 
+              soundEnabled={soundEnabled}
+              onSoundToggle={() => setSoundEnabled(!soundEnabled)}
+            />
+            <Button onClick={logout} variant="outline" size="sm">
+              خروج
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">ظرفیت کل</p>
-                  <p className="text-2xl font-bold">{toPersianNumerals(stats.totalCapacity)}</p>
+                  <p className="text-xs text-gray-600">ظرفیت کل</p>
+                  <p className="text-lg font-bold">{toPersianNumerals(stats.totalCapacity)}</p>
                 </div>
-                <Car className="h-8 w-8 text-blue-500" />
+                <Car className="h-6 w-6 text-blue-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">فضای اشغالی</p>
-                  <p className="text-2xl font-bold text-orange-500">
+                  <p className="text-xs text-gray-600">فضای اشغالی</p>
+                  <p className="text-lg font-bold text-orange-500">
                     {toPersianNumerals(stats.occupiedSpaces)}
                   </p>
                 </div>
-                <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 font-semibold text-sm">
+                <div className="h-6 w-6 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-orange-600 font-semibold text-xs">
                     {Math.round((stats.occupiedSpaces / stats.totalCapacity) * 100)}%
                   </span>
                 </div>
@@ -468,143 +492,164 @@ export default function EnhancedParkingDashboard() {
           </Card>
           
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">تردد امروز</p>
-                  <p className="text-2xl font-bold">{toPersianNumerals(stats.todaySessions)}</p>
+                  <p className="text-xs text-gray-600">جای خالی</p>
+                  <p className="text-lg font-bold text-green-600">
+                    {toPersianNumerals(stats.totalCapacity - stats.occupiedSpaces)}
+                  </p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-green-500" />
+                <ParkingCircle className="h-6 w-6 text-green-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">درآمد امروز</p>
-                  <p className="text-2xl font-bold">{toPersianNumerals(stats.todayRevenue.toLocaleString())}</p>
+                  <p className="text-xs text-gray-600">تعداد خودروها</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {toPersianNumerals(stats.activeSessions)}
+                  </p>
                 </div>
-                <CreditCard className="h-8 w-8 text-purple-500" />
+                <Activity className="h-6 w-6 text-blue-500" />
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">فعال‌ها</p>
-                  <p className="text-2xl font-bold">{toPersianNumerals(stats.activeSessions)}</p>
+                  <p className="text-xs text-gray-600">درآمد امروز</p>
+                  <p className="text-lg font-bold text-green-600">
+                    {toPersianNumerals(stats.todayRevenue)}
+                  </p>
                 </div>
-                <Clock className="h-8 w-8 text-red-500" />
+                <CreditCard className="h-6 w-6 text-green-500" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Camera Views */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CameraFrame
-                title="دوربین ورودی"
-                type="entry"
-                isActive={entryCameraActive}
-                onToggle={() => setEntryCameraActive(!entryCameraActive)}
-                onDetection={handlePlateDetection}
-              />
-              <CameraFrame
-                title="دوربین خروجی"
-                type="exit"
-                isActive={exitCameraActive}
-                onToggle={() => setExitCameraActive(!exitCameraActive)}
-                onDetection={handlePlateDetection}
-              />
-            </div>
-
-            {/* Parking Lots */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Camera Section */}
+          <div className="lg:col-span-2 space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ParkingCircle className="h-5 w-5" />
-                  وضعیت طبقات پارکینگ
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Camera className="h-5 w-5" />
+                  دوربین‌های فعال
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {mockParkingLots.map((lot) => (
-                    <ParkingLotCard key={lot.id} lot={lot} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <CameraFrame
+                    title="دوربین ورودی"
+                    type="entry"
+                    isActive={entryCameraActive}
+                    onToggle={() => setEntryCameraActive(!entryCameraActive)}
+                    onDetection={handlePlateDetection}
+                  />
+                  <CameraFrame
+                    title="دوربین خروجی"
+                    type="exit"
+                    isActive={exitCameraActive}
+                    onToggle={() => setExitCameraActive(!exitCameraActive)}
+                    onDetection={handlePlateDetection}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Active Sessions */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  جلسات فعال
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {sessions.map((session) => (
+                    <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-medium">{session.plateNumber}</p>
+                          <p className="text-sm text-gray-600">{session.lotName}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatPersianDate(session.entryTime, "HH:mm")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          {toPersianNumerals(session.duration)} دقیقه
+                        </Badge>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handlePayment(session)}
+                          disabled={session.paidAmount >= session.amount}
+                        >
+                          پرداخت
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Side Panel */}
-          <div className="space-y-6">
-            {/* Active Sessions */}
+          {/* Parking Lots */}
+          <div className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>وسایل نقلیه فعال</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  وضعیت پارکینگ
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
-                  <div className="space-y-3">
-                    {mockSessions.map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Car className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{session.plateNumber}</p>
-                            <p className="text-sm text-gray-600">
-                              {formatPersianDate(session.entryTime, "HH:mm")}
-                            </p>
-                            <p className="text-xs text-gray-500">{session.lotName}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline">{session.duration} دقیقه</Badge>
-                          <p className="text-sm font-semibold text-green-600 mt-1">
-                            {toPersianNumerals(session.amount.toLocaleString())} تومان
-                          </p>
-                          <Button 
-                            size="sm" 
-                            className="mt-1 w-full"
-                            onClick={() => handlePayment(session)}
-                          >
-                            پرداخت
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                <div className="space-y-3">
+                  {parkingLots.map((lot) => (
+                    <ParkingLotCard key={lot.id} lot={lot} />
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
             {/* Quick Actions */}
             <Card>
-              <CardHeader>
-                <CardTitle>عملیات سریع</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  دسترسی سریع
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button className="w-full" variant="outline">
-                  <Settings className="h-4 w-4 ml-2" />
-                  تنظیمات دوربین‌ها
-                </Button>
-                <Button className="w-full" variant="outline">
-                  <BarChart3 className="h-4 w-4 ml-2" />
-                  گزارشات روزانه
-                </Button>
-                <Button className="w-full" variant="outline">
-                  <Users className="h-4 w-4 ml-2" />
-                  مدیریت کاربران
-                </Button>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <BarChart3 className="h-4 w-4 ml-1" />
+                    گزارش‌ها
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Users className="h-4 w-4 ml-1" />
+                    کاربران
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Settings className="h-4 w-4 ml-1" />
+                    تنظیمات
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <CreditCard className="h-4 w-4 ml-1" />
+                    پرداخت‌ها
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -612,20 +657,27 @@ export default function EnhancedParkingDashboard() {
 
         {/* Payment Dialog */}
         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>پرداخت هزینه پارکینگ</DialogTitle>
+              <DialogTitle>پرداخت پارکینگ</DialogTitle>
             </DialogHeader>
             {selectedSession && (
               <PaymentProcessor
                 session={selectedSession}
-                onComplete={handlePaymentComplete}
-                onCancel={() => setIsPaymentDialogOpen(false)}
+                onPaymentComplete={handlePaymentComplete}
               />
             )}
           </DialogContent>
         </Dialog>
       </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <AuthGuard requiredRole="OPERATOR">
+      <EnhancedParkingDashboard />
+    </AuthGuard>
   );
 }

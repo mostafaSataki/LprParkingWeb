@@ -45,6 +45,7 @@ export function NavigationMenuCustom({
   // Memoize menu items to prevent unnecessary re-renders
   const menuItems = useMemo(() => [
     { href: "/", icon: BarChart3, label: "داشبورد" },
+    { href: "/gates", icon: Settings, label: "درب‌ها و دوربین‌ها" },
     { href: "/tariffs", icon: CreditCard, label: "تعرفه‌ها" },
     { href: "/pos", icon: Smartphone, label: "دستگاه‌های POS" },
     { href: "/shifts", icon: Clock, label: "شیفت‌ها" },
@@ -54,6 +55,7 @@ export function NavigationMenuCustom({
     { href: "/vehicle-groups", icon: Car, label: "گروه‌های خودرو" },
     { href: "/credit-accounts", icon: DollarSign, label: "حساب‌های اعتباری" },
     { href: "/holidays", icon: Calendar, label: "تعطیلات" },
+    { href: "/reservations", icon: Calendar, label: "رزروها" },
   ], []);
 
   const actionItems = useMemo(() => [
