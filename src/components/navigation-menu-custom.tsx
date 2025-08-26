@@ -23,6 +23,7 @@ import {
   Volume2,
   VolumeX,
   Calendar,
+  Camera,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,7 +46,8 @@ export function NavigationMenuCustom({
   // Memoize menu items to prevent unnecessary re-renders
   const menuItems = useMemo(() => [
     { href: "/", icon: BarChart3, label: "داشبورد" },
-    { href: "/gates", icon: Settings, label: "درب‌ها و دوربین‌ها" },
+    { href: "/gates", icon: Settings, label: "درب‌ها" },
+    { href: "/cameras", icon: Camera, label: "دوربین‌ها" },
     { href: "/tariffs", icon: CreditCard, label: "تعرفه‌ها" },
     { href: "/pos", icon: Smartphone, label: "دستگاه‌های POS" },
     { href: "/shifts", icon: Clock, label: "شیفت‌ها" },

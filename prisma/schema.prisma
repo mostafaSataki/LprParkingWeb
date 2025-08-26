@@ -306,6 +306,7 @@ model ParkingLocation {
 
   // Relations
   cameras       Camera[]
+  doors         DoorLocation[]
   parkingLots   ParkingLot[]
   userLocations UserLocation[]
   reservations  Reservation[]
@@ -313,10 +314,50 @@ model ParkingLocation {
   @@map("parking_locations")
 }
 
+// Door/Gate management
+model Door {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  type          DoorType @default(ENTRY)
+  isActive      Boolean  @default(true)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  cameras       Camera[]
+  locations     DoorLocation[]
+  
+  @@map("doors")
+}
+
+// Junction table for many-to-many relationship between doors and parking locations
+model DoorLocation {
+  id         String   @id @default(cuid())
+  doorId     String
+  locationId String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  door       Door           @relation(fields: [doorId], references: [id], onDelete: Cascade)
+  location   ParkingLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  @@unique([doorId, locationId])
+  @@map("door_locations")
+}
+
+enum DoorType {
+  ENTRY
+  EXIT
+  BOTH
+}
+
 // Camera management
 model Camera {
   id            String   @id @default(cuid())
   locationId    String
+  doorId        String?  // New field to associate camera with door
   name          String
   type          CameraType @default(ENTRY)
   direction     CameraDirection @default(IN)
@@ -330,6 +371,7 @@ model Camera {
 
   // Relations
   location      ParkingLocation @relation(fields: [locationId], references: [id])
+  door          Door?           @relation(fields: [doorId], references: [id])
   entrySessions ParkingSession[] @relation("EntryCamera")
   exitSessions  ParkingSession[] @relation("ExitCamera")
   recognitions  PlateRecognition[]
