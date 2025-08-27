@@ -46,6 +46,7 @@ export function NavigationMenuCustom({
   // Memoize menu items to prevent unnecessary re-renders
   const menuItems = useMemo(() => [
     { href: "/", icon: BarChart3, label: "داشبورد" },
+    { href: "/parking-locations", icon: Car, label: "پارکینگ‌ها" },
     { href: "/gates", icon: Settings, label: "درب‌ها" },
     { href: "/cameras", icon: Camera, label: "دوربین‌ها" },
     { href: "/tariffs", icon: CreditCard, label: "تعرفه‌ها" },
