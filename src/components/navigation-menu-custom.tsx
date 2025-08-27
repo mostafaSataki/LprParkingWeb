@@ -54,6 +54,7 @@ export function NavigationMenuCustom({
     { href: "/pos", icon: Smartphone, label: "دستگاه‌های POS" },
     { href: "/shifts", icon: Clock, label: "شیفت‌ها" },
     { href: "/users", icon: Users, label: "کاربران" },
+    { href: "/contracts", icon: FileText, label: "قراردادها" },
     { href: "/reports", icon: BarChart3, label: "گزارش‌ها" },
     { href: "/hardware", icon: Settings, label: "سخت‌افزار" },
     { href: "/vehicle-groups", icon: Car, label: "گروه‌های خودرو" },

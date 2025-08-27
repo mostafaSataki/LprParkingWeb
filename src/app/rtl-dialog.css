@@ -1,0 +1,74 @@
+/* RTL Dialog Custom Styles */
+.rtl-dialog-content {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.rtl-dialog-content * {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.rtl-dialog-content .text-left {
+  text-align: right !important;
+}
+
+.rtl-dialog-content .ml-auto {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
+.rtl-dialog-content .mr-auto {
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+.rtl-dialog-content .pl-2 {
+  padding-left: 0 !important;
+  padding-right: 0.5rem !important;
+}
+
+.rtl-dialog-content .pr-2 {
+  padding-right: 0 !important;
+  padding-left: 0.5rem !important;
+}
+
+/* Force RTL for form elements */
+.rtl-dialog-content input,
+.rtl-dialog-content select,
+.rtl-dialog-content textarea,
+.rtl-dialog-content label {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Force RTL for buttons */
+.rtl-dialog-content button {
+  direction: rtl !important;
+}
+
+/* Force RTL for tabs */
+.rtl-dialog-content [role="tablist"] {
+  direction: rtl !important;
+}
+
+.rtl-dialog-content [role="tab"] {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Force RTL for grid and flex */
+.rtl-dialog-content .grid,
+.rtl-dialog-content .flex {
+  direction: rtl !important;
+}
+
+/* Fix for select components */
+.rtl-dialog-content .select-trigger {
+  direction: rtl !important;
+}
+
+.rtl-dialog-content .select-content {
+  direction: rtl !important;
+  text-align: right !important;
+}
