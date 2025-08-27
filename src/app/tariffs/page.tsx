@@ -29,6 +29,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { formatPersianDate, toPersianNumerals } from "@/lib/persian-date";
+import * as jalaliday from "jalaliday";
 
 // Mock data for demonstration
 const mockTariffs = [
@@ -92,16 +93,16 @@ const mockHolidays = [
   {
     id: "1",
     name: "نوروز",
-    date: new Date("2024-03-21"),
+    date: new Date("2024-03-21"), // ۱ فروردین
     isRecurring: true,
     type: "OFFICIAL",
-    description: "عید نوروز",
+    description: "عید نوروز - ۱ فروردین",
     isActive: true
   },
   {
     id: "2",
     name: "روز جمهوری اسلامی",
-    date: new Date("2024-04-01"),
+    date: new Date("2024-04-01"), // ۱۲ فروردین
     isRecurring: true,
     type: "OFFICIAL",
     description: "۱۲ فروردین",
@@ -109,11 +110,92 @@ const mockHolidays = [
   },
   {
     id: "3",
+    name: "روز طبیعت",
+    date: new Date("2024-04-02"), // ۱۳ فروردین
+    isRecurring: true,
+    type: "OFFICIAL",
+    description: "سیزده بدر - ۱۳ فروردین",
+    isActive: true
+  },
+  {
+    id: "4",
+    name: "روز کارگر",
+    date: new Date("2024-05-01"), // ۱۱ اردیبهشت
+    isRecurring: true,
+    type: "OFFICIAL",
+    description: "روز کارگر - ۱۱ اردیبهشت",
+    isActive: true
+  },
+  {
+    id: "5",
     name: "روز قدس",
-    date: new Date("2024-04-05"),
+    date: new Date("2024-04-05"), // آخرین جمعه ماه رمضان (متغیر)
     isRecurring: true,
     type: "RELIGIOUS",
-    description: "آخرین جمعه ماه رمضان",
+    description: "روز قدس - آخرین جمعه ماه رمضان",
+    isActive: true
+  },
+  {
+    id: "6",
+    name: "عید فطر",
+    date: new Date("2024-04-10"), // ۱ شوال (متغیر)
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "عید فطر - ۱ شوال",
+    isActive: true
+  },
+  {
+    id: "7",
+    name: "عید قربان",
+    date: new Date("2024-06-17"), // ۱۰ ذی‌الحجه (متغیر)
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "عید قربان - ۱۰ ذی‌الحجه",
+    isActive: true
+  },
+  {
+    id: "8",
+    name: "عید غدیر خم",
+    date: new Date("2024-06-18"), // ۱۸ ذی‌الحجه (متغیر)
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "عید غدیر خم - ۱۸ ذی‌الحجه",
+    isActive: true
+  },
+  {
+    id: "9",
+    name: "تاسوعا و عاشورا",
+    date: new Date("2024-07-17"), // ۹ و ۱۰ محرم (متغیر)
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "تاسوعا و عاشورای حسینی - ۹ و ۱۰ محرم",
+    isActive: true
+  },
+  {
+    id: "10",
+    name: "رحلت پیامبر",
+    date: new Date("2024-09-28"), // ۲۸ صفر
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "رحلت پیامبر اکرم (ص) - ۲۸ صفر",
+    isActive: true
+  },
+  {
+    id: "11",
+    name: "شهادت امام صادق",
+    date: new Date("2024-11-25"), // ۲۵ شوال
+    isRecurring: true,
+    type: "RELIGIOUS",
+    description: "شهادت امام جعفر صادق (ع) - ۲۵ شوال",
+    isActive: true
+  },
+  {
+    id: "12",
+    name: "روز استقلال",
+    date: new Date("2024-10-01"), // ۵ مهر
+    isRecurring: true,
+    type: "OFFICIAL",
+    description: "روز استقلال - ۵ مهر",
     isActive: true
   }
 ];
@@ -267,22 +349,54 @@ export default function TariffManagement() {
     return labels[type] || type;
   };
 
+  // Function to get Persian month name
+  const getPersianMonthName = (month: number) => {
+    const months = [
+      "فروردین", "اردیبهشت", "خرداد", "تیر", 
+      "مرداد", "شهریور", "مهر", "آبان", 
+      "آذر", "دی", "بهمن", "اسفند"
+    ];
+    return months[month - 1] || "";
+  };
+
+  // Function to sort holidays by Persian date
+  const sortHolidaysByPersianDate = (holidaysList: any[]) => {
+    return [...holidaysList].sort((a, b) => {
+      const jalaaliA = toJalaali(a.date);
+      const jalaaliB = toJalaali(b.date);
+      
+      // Compare by month first, then by day
+      if (jalaaliA.jm !== jalaaliB.jm) {
+        return jalaaliA.jm - jalaaliB.jm;
+      }
+      return jalaaliA.jd - jalaaliB.jd;
+    });
+  };
+
+  // Sort holidays on component mount
+  const [sortedHolidays, setSortedHolidays] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const sorted = sortHolidaysByPersianDate(holidays);
+    setSortedHolidays(sorted);
+  }, [holidays]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">مدیریت تعرفه‌ها</h1>
-            <p className="text-gray-600 mt-1">
-              {formatPersianDate(new Date(), "dddd، DD MMMM YYYY")}
-            </p>
-          </div>
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm">
               <Settings className="h-4 w-4 ml-2" />
               تنظیمات سیستم
             </Button>
+          </div>
+          <div className="text-right">
+            <h1 className="text-3xl font-bold">مدیریت تعرفه‌ها</h1>
+            <p className="text-gray-600 mt-1">
+              {formatPersianDate(new Date(), "dddd، DD MMMM YYYY")}
+            </p>
           </div>
         </div>
 
@@ -290,7 +404,7 @@ export default function TariffManagement() {
         <Tabs defaultValue="tariffs" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="tariffs">تعرفه‌ها</TabsTrigger>
-            <TabsTrigger value="holidays">تعطیلات</TabsTrigger>
+            <TabsTrigger value="calendar">تقویم تعطیلات سال</TabsTrigger>
           </TabsList>
 
           {/* Tariffs Tab */}
@@ -473,7 +587,7 @@ export default function TariffManagement() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end space-x-2">
+                    <div className="flex justify-start space-x-reverse space-x-2">
                       <Button type="button" variant="outline" onClick={() => setShowTariffForm(false)}>
                         انصراف
                       </Button>
@@ -509,45 +623,45 @@ export default function TariffManagement() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
-                      <Car className="h-4 w-4" />
                       <span>{getVehicleTypeLabel(tariff.vehicleType)}</span>
+                      <Car className="h-4 w-4" />
                     </div>
                     
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>حق ورودی:</span>
                         <span className="font-semibold">{toPersianNumerals(tariff.entranceFee.toLocaleString())} تومان</span>
+                        <span>حق ورودی:</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>دقایق رایگان:</span>
                         <span className="font-semibold">{toPersianNumerals(tariff.freeMinutes)} دقیقه</span>
+                        <span>دقایق رایگان:</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>نرخ ساعتی:</span>
                         <span className="font-semibold">{toPersianNumerals(tariff.hourlyRate.toLocaleString())} تومان</span>
+                        <span>نرخ ساعتی:</span>
                       </div>
                       {tariff.dailyRate && (
                         <div className="flex justify-between">
-                          <span>نرخ روزانه:</span>
                           <span className="font-semibold">{toPersianNumerals(tariff.dailyRate.toLocaleString())} تومان</span>
+                          <span>نرخ روزانه:</span>
                         </div>
                       )}
                       {tariff.nightlyRate && (
                         <div className="flex justify-between">
-                          <span>نرخ شبانه:</span>
                           <span className="font-semibold">{toPersianNumerals(tariff.nightlyRate.toLocaleString())} تومان</span>
+                          <span>نرخ شبانه:</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-gray-600 text-right">
                       <div>از: {formatPersianDate(tariff.validFrom, "YYYY/MM/DD")}</div>
                       {tariff.validTo && (
                         <div>تا: {formatPersianDate(tariff.validTo, "YYYY/MM/DD")}</div>
                       )}
                     </div>
 
-                    <div className="flex justify-end space-x-2">
+                    <div className="flex justify-start space-x-reverse space-x-2">
                       <Button variant="outline" size="sm" onClick={() => editTariff(tariff)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -561,159 +675,68 @@ export default function TariffManagement() {
             </div>
           </TabsContent>
 
-          {/* Holidays Tab */}
-          <TabsContent value="holidays" className="space-y-6">
+          {/* Calendar Tab */}
+          <TabsContent value="calendar" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">تعطیلات رسمی</h2>
-              <Button onClick={() => setShowHolidayForm(true)}>
-                <Plus className="h-4 w-4 ml-2" />
-                تعطیل جدید
-              </Button>
+              <h2 className="text-xl font-semibold">تقویم تعطیلات سال</h2>
+              <div className="text-sm text-gray-600">
+                سال {new Date().toLocaleDateString('fa-IR', { year: 'numeric' })}
+              </div>
             </div>
 
-            {/* Holiday Form */}
-            {showHolidayForm && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>
-                      {editingHoliday ? "ویرایش تعطیل" : "تعطیل جدید"}
-                    </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowHolidayForm(false);
-                        setEditingHoliday(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleHolidaySubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Persian Months Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[
+                { name: "فروردین", order: 1 },
+                { name: "اردیبهشت", order: 2 },
+                { name: "خرداد", order: 3 },
+                { name: "تیر", order: 4 },
+                { name: "مرداد", order: 5 },
+                { name: "شهریور", order: 6 },
+                { name: "مهر", order: 7 },
+                { name: "آبان", order: 8 },
+                { name: "آذر", order: 9 },
+                { name: "دی", order: 10 },
+                { name: "بهمن", order: 11 },
+                { name: "اسفند", order: 12 }
+              ].map((month) => {
+                const monthHolidays = holidays.filter(holiday => {
+                  const jalaaliDate = toJalaali(holiday.date);
+                  return jalaaliDate.jm === month.order;
+                });
+
+                return (
+                  <Card key={month.name} className="text-center">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg">{month.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                       <div className="space-y-2">
-                        <Label htmlFor="holidayName">نام تعطیل</Label>
-                        <Input
-                          id="holidayName"
-                          value={holidayForm.name}
-                          onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
-                          required
-                        />
+                        <div className="text-2xl font-bold text-blue-600">
+                          {monthHolidays.length}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          تعطیل {monthHolidays.length === 1 ? "رسمی" : "رسمی"}
+                        </div>
+                        {monthHolidays.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {monthHolidays.slice(0, 3).map((holiday) => (
+                              <div key={holiday.id} className="text-xs text-gray-700 truncate">
+                                {holiday.name}
+                              </div>
+                            ))}
+                            {monthHolidays.length > 3 && (
+                              <div className="text-xs text-gray-500">
+                                +{monthHolidays.length - 3} تعطیل دیگر
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="holidayType">نوع تعطیل</Label>
-                        <Select
-                          value={holidayForm.type}
-                          onValueChange={(value) => setHolidayForm({ ...holidayForm, type: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="OFFICIAL">رسمی</SelectItem>
-                            <SelectItem value="RELIGIOUS">مذهبی</SelectItem>
-                            <SelectItem value="CUSTOM">سفارشی</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="holidayDate">تاریخ</Label>
-                      <PersianDatePicker
-                        value={holidayForm.date}
-                        onChange={(date) => setHolidayForm({ ...holidayForm, date: date || new Date() })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="holidayDescription">توضیحات</Label>
-                      <Textarea
-                        id="holidayDescription"
-                        value={holidayForm.description}
-                        onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isRecurring"
-                          checked={holidayForm.isRecurring}
-                          onCheckedChange={(checked) => setHolidayForm({ ...holidayForm, isRecurring: checked })}
-                        />
-                        <Label htmlFor="isRecurring">تکرار سالانه</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isActive"
-                          checked={holidayForm.isActive}
-                          onCheckedChange={(checked) => setHolidayForm({ ...holidayForm, isActive: checked })}
-                        />
-                        <Label htmlFor="isActive">فعال</Label>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setShowHolidayForm(false)}>
-                        انصراف
-                      </Button>
-                      <Button type="submit">
-                        <Save className="h-4 w-4 ml-2" />
-                        ذخیره
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Holidays List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {holidays.map((holiday) => (
-                <Card key={holiday.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{holiday.name}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={holiday.isActive ? "default" : "secondary"}>
-                          {holiday.isActive ? "فعال" : "غیرفعال"}
-                        </Badge>
-                        <Badge variant="outline">{getHolidayTypeLabel(holiday.type)}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatPersianDate(holiday.date, "YYYY/MM/DD")}</span>
-                    </div>
-                    
-                    {holiday.description && (
-                      <p className="text-sm text-gray-600">{holiday.description}</p>
-                    )}
-
-                    {holiday.isRecurring && (
-                      <div className="flex items-center gap-2 text-sm text-blue-600">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>تکرار سالانه</span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => editHoliday(holiday)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => deleteHoliday(holiday.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>

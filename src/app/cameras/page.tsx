@@ -30,7 +30,9 @@ import {
   AlertTriangle,
   CheckCircle,
   Activity,
-  Filter
+  Filter,
+  Save,
+  X
 } from "lucide-react";
 import { formatPersianDate, toPersianNumerals } from "@/lib/persian-date";
 import { useAuth } from "@/lib/auth-context";
@@ -57,6 +59,196 @@ interface Camera {
 interface CreateCameraDialogProps {
   onCameraCreated: () => void;
   doors: Array<{ id: string; name: string; locationName: string }>;
+}
+
+interface EditCameraDialogProps {
+  camera: Camera | null;
+  onCameraUpdated: () => void;
+  doors: Array<{ id: string; name: string; locationName: string }>;
+}
+
+function EditCameraDialog({ camera, onCameraUpdated, doors }: EditCameraDialogProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "",
+    direction: "",
+    doorId: "",
+    ipAddress: "",
+    rtspUrl: "",
+    resolution: ""
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (camera) {
+      setFormData({
+        name: camera.name,
+        type: camera.type,
+        direction: camera.direction,
+        doorId: camera.doorId || "",
+        ipAddress: camera.ipAddress || "",
+        rtspUrl: camera.rtspUrl || "",
+        resolution: camera.resolution || ""
+      });
+      setIsOpen(true);
+    }
+  }, [camera]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setIsOpen(false);
+      onCameraUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در ویرایش دوربین");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>ویرایش دوربین</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="name">نام دوربین</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="مثال: دوربین ورودی اصلی"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="doorId">درب</Label>
+            <Select
+              value={formData.doorId}
+              onValueChange={(value) => setFormData({ ...formData, doorId: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="انتخاب درب" />
+              </SelectTrigger>
+              <SelectContent>
+                {doors.map((door) => (
+                  <SelectItem key={door.id} value={door.id}>
+                    <div>
+                      <div>{door.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {door.locationNames.join("، ")}
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="type">نوع</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) => setFormData({ ...formData, type: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="نوع" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ENTRY">ورودی</SelectItem>
+                  <SelectItem value="EXIT">خروجی</SelectItem>
+                  <SelectItem value="BOTH">دو طرفه</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="direction">جهت</Label>
+              <Select
+                value={formData.direction}
+                onValueChange={(value) => setFormData({ ...formData, direction: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="جهت" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IN">ورود</SelectItem>
+                  <SelectItem value="OUT">خروج</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="ipAddress">آدرس IP</Label>
+            <Input
+              value={formData.ipAddress}
+              onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+              placeholder="192.168.1.100"
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="rtspUrl">RTSP (اختیاری)</Label>
+              <Input
+                value={formData.rtspUrl}
+                onChange={(e) => setFormData({ ...formData, rtspUrl: e.target.value })}
+                placeholder="rtsp://..."
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="resolution">رزولوشن (اختیاری)</Label>
+              <Input
+                value={formData.resolution}
+                onChange={(e) => setFormData({ ...formData, resolution: e.target.value })}
+                placeholder="1920x1080"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex gap-2">
+            <Button 
+              type="submit" 
+              disabled={loading || !formData.doorId} 
+              className="flex-1"
+            >
+              {loading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+            >
+              انصراف
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function CreateCameraDialog({ onCameraCreated, doors }: CreateCameraDialogProps) {
@@ -285,6 +477,7 @@ export default function CamerasManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
 
   // Mock doors for camera creation
   const doors = [
@@ -422,6 +615,17 @@ export default function CamerasManagementPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در تغییر وضعیت دوربین");
     }
+  };
+
+  const handleEditCamera = (camera: Camera) => {
+    if (camera.isActive) {
+      setEditingCamera(camera);
+    }
+  };
+
+  const handleCameraUpdated = () => {
+    // Refresh cameras list after update
+    setEditingCamera(null);
   };
 
   const handleToggleSimulation = () => {
@@ -626,7 +830,7 @@ export default function CamerasManagementPage() {
             </CardContent>
           </Card>
 
-          {/* Cameras Table */}
+          {/* Cameras Table - RTL */}
           <Card>
             <CardHeader>
               <CardTitle>لیست دوربین‌ها</CardTitle>
@@ -636,59 +840,68 @@ export default function CamerasManagementPage() {
             </CardHeader>
             <CardContent>
               <ScrollArea className="max-h-96">
-                <Table>
+                <Table dir="rtl">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>نام دوربین</TableHead>
-                      <TableHead>درب</TableHead>
-                      <TableHead>پارکینگ</TableHead>
-                      <TableHead>نوع</TableHead>
-                      <TableHead>آدرس IP</TableHead>
-                      <TableHead>وضعیت</TableHead>
-                      <TableHead>عملیات</TableHead>
+                      <TableHead className="text-right">عملیات</TableHead>
+                      <TableHead className="text-right">وضعیت</TableHead>
+                      <TableHead className="text-right">آدرس IP</TableHead>
+                      <TableHead className="text-right">نوع</TableHead>
+                      <TableHead className="text-right">پارکینگ</TableHead>
+                      <TableHead className="text-right">درب</TableHead>
+                      <TableHead className="text-right">نام دوربین</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredCameras.map((camera) => (
                       <TableRow key={camera.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Camera className="h-4 w-4" />
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
                             <div>
                               <div className="font-medium">{camera.name}</div>
                               <div className="text-xs text-gray-500">
                                 {getDirectionLabel(camera.direction)}
                               </div>
                             </div>
+                            <Camera className="h-4 w-4" />
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-1 justify-end">
                             <DoorOpen className="h-3 w-3" />
                             {camera.doorName}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-1 justify-end">
                             <MapPin className="h-3 w-3" />
                             {camera.locationName}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Badge variant="outline">
                             {getCameraTypeLabel(camera.type)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
+                        <TableCell className="font-mono text-sm text-right">
                           {camera.ipAddress}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Badge variant={getStatusBadgeVariant(camera.status)}>
                             {getStatusLabel(camera.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditCamera(camera)}
+                              disabled={!camera.isActive}
+                              title={camera.isActive ? "ویرایش دوربین" : "دوربین غیرفعال است"}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -699,9 +912,6 @@ export default function CamerasManagementPage() {
                               ) : (
                                 <WifiOff className="h-3 w-3" />
                               )}
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Settings className="h-3 w-3" />
                             </Button>
                           </div>
                         </TableCell>
@@ -725,6 +935,13 @@ export default function CamerasManagementPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          
+          {/* Edit Camera Dialog */}
+          <EditCameraDialog 
+            camera={editingCamera} 
+            onCameraUpdated={handleCameraUpdated} 
+            doors={doors} 
+          />
         </div>
       </div>
     </AuthGuard>
