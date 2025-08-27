@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RTLDialogWrapper } from "@/components/rtl-dialog-wrapper";
+import { RTLDialogContent } from "@/components/rtl-dialog-content";
 import { 
   Plus, 
   Edit, 
@@ -480,7 +482,7 @@ interface ContractFormProps {
 function ContractForm({ contract, locations, customers, vehicles, onSave, onCancel, isLoading }: ContractFormProps) {
   const [formData, setFormData] = useState<ContractFormData>({
     customerId: contract?.customerId || "",
-    vehicleId: contract?.vehicleId || "",
+    vehicleId: contract?.vehicleId || "none",
     locationId: contract?.locationId || "",
     name: contract?.name || "",
     description: contract?.description || "",
@@ -511,7 +513,14 @@ function ContractForm({ contract, locations, customers, vehicles, onSave, onCanc
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // Prepare data for API - convert "none" to undefined for vehicleId
+    const apiData = { ...formData };
+    if (apiData.vehicleId === "none") {
+      apiData.vehicleId = undefined;
+    }
+    
+    onSave(apiData);
   };
 
   const getContractTypeLabel = (type: string) => {
@@ -642,7 +651,7 @@ function ContractForm({ contract, locations, customers, vehicles, onSave, onCanc
                   <SelectValue placeholder="خودرو را انتخاب کنید" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">بدون محدودیت خودرو</SelectItem>
+                  <SelectItem value="none">بدون محدودیت خودرو</SelectItem>
                   {vehicles.map((vehicle) => (
                     <SelectItem key={vehicle.plateNumber} value={vehicle.plateNumber}>
                       {vehicle.plateNumber} - {vehicle.ownerName}
@@ -895,9 +904,9 @@ export default function ContractsManagement() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    locationId: '',
-    customerId: '',
-    isActive: '',
+    locationId: 'all',
+    customerId: 'all',
+    isActive: 'all',
   });
 
   // Load data
@@ -1023,9 +1032,9 @@ export default function ContractsManagement() {
 
   const getFilteredContracts = () => {
     return contracts.filter(contract => {
-      if (filters.locationId && contract.locationId !== filters.locationId) return false;
-      if (filters.customerId && contract.customerId !== filters.customerId) return false;
-      if (filters.isActive !== '' && contract.isActive.toString() !== filters.isActive) return false;
+      if (filters.locationId !== "all" && contract.locationId !== filters.locationId) return false;
+      if (filters.customerId !== "all" && contract.customerId !== filters.customerId) return false;
+      if (filters.isActive !== "all" && contract.isActive.toString() !== filters.isActive) return false;
       return true;
     });
   };
@@ -1149,7 +1158,7 @@ export default function ContractsManagement() {
                     <SelectValue placeholder="همه محل‌ها" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">همه محل‌ها</SelectItem>
+                    <SelectItem value="all">همه محل‌ها</SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}
@@ -1169,7 +1178,7 @@ export default function ContractsManagement() {
                     <SelectValue placeholder="همه مشتریان" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">همه مشتریان</SelectItem>
+                    <SelectItem value="all">همه مشتریان</SelectItem>
                     {customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}
@@ -1189,7 +1198,7 @@ export default function ContractsManagement() {
                     <SelectValue placeholder="همه وضعیت‌ها" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">همه وضعیت‌ها</SelectItem>
+                    <SelectItem value="all">همه وضعیت‌ها</SelectItem>
                     <SelectItem value="true">فعال</SelectItem>
                     <SelectItem value="false">غیرفعال</SelectItem>
                   </SelectContent>
@@ -1234,8 +1243,9 @@ export default function ContractsManagement() {
 
         {/* Form Dialog */}
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh]">
-            <DialogHeader>
+          <RTLDialogContent className="sm:max-w-6xl max-h-[95vh]">
+            <RTLDialogWrapper>
+              <DialogHeader>
               <DialogTitle>
                 {editingContract ? "ویرایش قرارداد" : "ایجاد قرارداد جدید"}
               </DialogTitle>
@@ -1252,15 +1262,16 @@ export default function ContractsManagement() {
               }}
               isLoading={actionLoading}
             />
-          </DialogContent>
+          </RTLDialogContent>
         </Dialog>
 
         {/* Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className="sm:max-w-4xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>جزئیات قرارداد</DialogTitle>
-            </DialogHeader>
+            <RTLDialogWrapper>
+              <DialogHeader>
+                <DialogTitle>جزئیات قرارداد</DialogTitle>
+              </DialogHeader>
             {selectedContract && (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
@@ -1324,6 +1335,7 @@ export default function ContractsManagement() {
                 </div>
               </div>
             )}
+            </RTLDialogWrapper>
           </DialogContent>
         </Dialog>
       </div>

@@ -13,6 +13,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Person management for access control (no payment required)
+model Person {
+  id            String      @id @default(cuid())
+  nationalCode  String?     @unique
+  firstName     String
+  lastName      String
+  mobile        String?
+  email         String?
+  organization  String?     // Company/Organization name
+  department    String?     // Department/Section
+  position      String?     // Job position
+  accessLevel   AccessLevel @default(STANDARD)
+  isActive      Boolean     @default(true)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  sessions      ParkingSession[]
+  vehicles      PersonVehicle[]
+  
+  @@map("persons")
+}
+
+// Person-Vehicle relationship (one person can have multiple vehicles)
+model PersonVehicle {
+  id            String      @id @default(cuid())
+  personId      String
+  plateNumber   String
+  vehicleType  VehicleType @default(CAR)
+  vehicleName  String?     // Optional vehicle name/description
+  isPrimary    Boolean     @default(false) // Primary vehicle for the person
+  isActive     Boolean     @default(true)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  person        Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  sessions      ParkingSession[]
+  
+  @@unique([personId, plateNumber])
+  @@map("person_vehicles")
+}
+
+enum AccessLevel {
+  STANDARD
+  VIP
+  STAFF
+  SECURITY
+  MANAGEMENT
+}
+
 // User management and authentication
 model User {
   id            String   @id @default(cuid())
@@ -486,6 +539,8 @@ model ParkingSession {
   operatorId      String?
   shiftId         String?
   lotId           String?          // Parking lot assignment
+  personId        String?          // Associated person (for access control)
+  personVehicleId String?          // Associated person vehicle (for multiple vehicles per person)
   status          SessionStatus    @default(ACTIVE)
   totalAmount     Float            @default(0)
   paidAmount      Float            @default(0)
@@ -501,6 +556,8 @@ model ParkingSession {
   tariff          Tariff?          @relation(fields: [tariffId], references: [id])
   operator        User?            @relation("OperatorSessions", fields: [operatorId], references: [id])
   shift           Shift?           @relation(fields: [shiftId], references: [id])
+  person          Person?          @relation(fields: [personId], references: [id])
+  personVehicle   PersonVehicle?   @relation(fields: [personVehicleId], references: [id])
   payments        Payment[]
   events          SessionEvent[]
   creditAccount   CreditAccount?   @relation(fields: [creditAccountId], references: [id])
