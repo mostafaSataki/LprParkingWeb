@@ -34,6 +34,7 @@ model User {
   credits        CreditAccount[]
   locations      UserLocation[]
   reservations   Reservation[]
+  contracts      ParkingContract[]
   
   @@map("users")
 }
@@ -80,6 +81,7 @@ model Vehicle {
 
   // Relations
   sessions     ParkingSession[]
+  contracts    ParkingContract[]
   
   @@map("vehicles")
 }
@@ -149,6 +151,7 @@ model Tariff {
   sessions        ParkingSession[]
   holidayRules    HolidayTariffRule[]
   group           VehicleGroup? @relation(fields: [groupId], references: [id])
+  contracts       ParkingContract[]
   
   @@map("tariffs")
 }
@@ -310,6 +313,7 @@ model ParkingLocation {
   parkingLots   ParkingLot[]
   userLocations UserLocation[]
   reservations  Reservation[]
+  contracts      ParkingContract[]
   
   @@map("parking_locations")
 }
@@ -504,6 +508,7 @@ model ParkingSession {
   entryCamera     Camera?          @relation("EntryCamera", fields: [entryCameraId], references: [id])
   exitCamera      Camera?          @relation("ExitCamera", fields: [exitCameraId], references: [id])
   recognitions    PlateRecognition[]
+  contractUsages  ContractUsage[]
   
   @@map("parking_sessions")
 }
@@ -1001,4 +1006,79 @@ enum SMSStatus {
   DELIVERED
   FAILED
   CANCELLED
+}
+
+// Parking Contracts System
+model ParkingContract {
+  id                    String   @id @default(cuid())
+  customerId            String   // User ID or customer ID
+  vehicleId             String?  // Optional: Specific vehicle for this contract
+  locationId            String   // Parking location for this contract
+  name                  String   // Contract name/description
+  description           String?
+  contractType          ContractType @default(MONTHLY)
+  startDate             DateTime
+  endDate               DateTime?
+  validFrom             DateTime @default(now())
+  validTo               DateTime?
+  dailyEntranceLimit    Int      @default(1)  // Max entrances per day
+  weeklyEntranceLimit   Int?                  // Max entrances per week
+  monthlyEntranceLimit  Int?                  // Max entrances per month
+  totalEntranceLimit    Int?                  // Max total entrances for contract period
+  mondayAllowed         Boolean  @default(true)
+  tuesdayAllowed        Boolean  @default(true)
+  wednesdayAllowed      Boolean  @default(true)
+  thursdayAllowed       Boolean  @default(true)
+  fridayAllowed         Boolean  @default(true)
+  saturdayAllowed       Boolean  @default(true)
+  sundayAllowed         Boolean  @default(true)
+  startTime             String?  // Format: "HH:mm"
+  endTime               String?  // Format: "HH:mm"
+  isActive              Boolean  @default(true)
+  autoRenew             Boolean  @default(false)
+  tariffId              String?  // Custom tariff for this contract
+  fixedMonthlyFee      Float?   // Fixed monthly fee instead of usage-based
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  customer              User         @relation(fields: [customerId], references: [id])
+  vehicle               Vehicle?     @relation(fields: [vehicleId], references: [plateNumber])
+  location              ParkingLocation @relation(fields: [locationId], references: [id])
+  tariff                Tariff?      @relation(fields: [tariffId], references: [id])
+  usages                ContractUsage[]
+  
+  @@map("parking_contracts")
+}
+
+// Contract usage tracking
+model ContractUsage {
+  id              String   @id @default(cuid())
+  contractId      String
+  sessionId       String?  // Optional: Link to parking session
+  entranceDate    DateTime @default(now())
+  entranceTime    String   // Format: "HH:mm:ss"
+  exitDate        DateTime?
+  exitTime        String?
+  isValid         Boolean  @default(true) // Whether this usage was valid per contract rules
+  violationReason String?  // Reason if isValid = false
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  contract        ParkingContract @relation(fields: [contractId], references: [id])
+  session         ParkingSession?  @relation(fields: [sessionId], references: [id])
+  
+  @@map("contract_usages")
+}
+
+enum ContractType {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  CUSTOM
 }

@@ -24,6 +24,7 @@ import {
   VolumeX,
   Calendar,
   Camera,
+  FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 

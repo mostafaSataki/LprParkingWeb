@@ -7,9 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Plus, 
   Edit, 
@@ -18,15 +16,9 @@ import {
   Camera, 
   MapPin, 
   Settings,
-  Wifi,
-  WifiOff,
   CheckCircle,
   AlertTriangle,
-  Eye,
-  Play,
-  Pause,
-  Users,
-  Car
+  Loader2
 } from "lucide-react";
 
 function formatPersianDate(date: Date | string): string {
@@ -59,35 +51,31 @@ interface ParkingLocation {
   updatedAt: Date;
   cameras: Camera[];
   parkingLots: ParkingLot[];
+  _count: {
+    cameras: number;
+    parkingLots: number;
+    doors: number;
+  };
 }
 
 interface Camera {
   id: string;
-  locationId: string;
   name: string;
   type: "ENTRY" | "EXIT" | "BOTH";
   direction: "IN" | "OUT";
   isActive: boolean;
   ipAddress?: string;
-  rtspUrl?: string;
   resolution?: string;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface ParkingLot {
   id: string;
-  locationId: string;
   name: string;
-  description?: string;
   totalCapacity: number;
   occupiedSpaces: number;
   floorNumber?: number;
   section?: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface LocationFormData {
@@ -97,110 +85,53 @@ interface LocationFormData {
   isActive: boolean;
 }
 
-interface CameraFormData {
-  name: string;
-  type: "ENTRY" | "EXIT" | "BOTH";
-  direction: "IN" | "OUT";
-  ipAddress?: string;
-  rtspUrl?: string;
-  resolution?: string;
-  notes?: string;
-  isActive: boolean;
-}
-
-// Mock Data
-const mockLocations: ParkingLocation[] = [
-  {
-    id: "1",
-    name: "پارکینگ مرکزی",
-    description: "پارکینگ اصلی مرکز تجاری",
-    address: "میدان آزادی، خیابان آزادی",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date(),
-    cameras: [
-      {
-        id: "1",
-        locationId: "1",
-        name: "دوربین ورودی اصلی",
-        type: "ENTRY",
-        direction: "IN",
-        isActive: true,
-        ipAddress: "192.168.1.100",
-        rtspUrl: "rtsp://192.168.1.100:554/stream",
-        resolution: "1920x1080",
-        notes: "دوربین اصلی ورود",
-        createdAt: new Date("2024-01-01"),
-        updatedAt: new Date()
-      },
-      {
-        id: "2",
-        locationId: "1",
-        name: "دوربین خروجی اصلی",
-        type: "EXIT",
-        direction: "OUT",
-        isActive: true,
-        ipAddress: "192.168.1.101",
-        rtspUrl: "rtsp://192.168.1.101:554/stream",
-        resolution: "1920x1080",
-        notes: "دوربین اصلی خروج",
-        createdAt: new Date("2024-01-01"),
-        updatedAt: new Date()
-      }
-    ],
-    parkingLots: [
-      {
-        id: "1",
-        locationId: "1",
-        name: "طبقه همکف",
-        totalCapacity: 50,
-        occupiedSpaces: 32,
-        floorNumber: 0,
-        section: "A",
-        isActive: true,
-        createdAt: new Date("2024-01-01"),
-        updatedAt: new Date()
-      }
-    ]
-  },
-  {
-    id: "2",
-    name: "پارکینگ غرب",
-    description: "پارکینگ مجتمع تجاری غرب",
-    address: "بلوار کشاورز، خیابان غربی",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date(),
-    cameras: [
-      {
-        id: "3",
-        locationId: "2",
-        name: "دوربین ورودی غرب",
-        type: "ENTRY",
-        direction: "IN",
-        isActive: true,
-        ipAddress: "192.168.1.102",
-        rtspUrl: "rtsp://192.168.1.102:554/stream",
-        resolution: "1280x720",
-        notes: "دوربین ورودی پارکینگ غرب",
-        createdAt: new Date("2024-01-01"),
-        updatedAt: new Date()
-      }
-    ],
-    parkingLots: []
-  },
-  {
-    id: "3",
-    name: "پارکینگ شرق",
-    description: "پارکینگ مجتمع اداری شرق",
-    address: "خیابان امام خمینی، خیابان شرقی",
-    isActive: false,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date(),
-    cameras: [],
-    parkingLots: []
+// API Service
+class ParkingLocationsAPI {
+  static async getLocations(): Promise<ParkingLocation[]> {
+    const response = await fetch('/api/parking-locations');
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'خطا در دریافت لیست محل‌های پارکینگ');
+    }
+    return result.data;
   }
-];
+
+  static async createLocation(data: LocationFormData): Promise<ParkingLocation> {
+    const response = await fetch('/api/parking-locations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'خطا در ایجاد محل پارکینگ');
+    }
+    return result.data;
+  }
+
+  static async updateLocation(id: string, data: Partial<LocationFormData>): Promise<ParkingLocation> {
+    const response = await fetch(`/api/parking-locations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'خطا در به‌روزرسانی محل پارکینگ');
+    }
+    return result.data;
+  }
+
+  static async deleteLocation(id: string): Promise<void> {
+    const response = await fetch(`/api/parking-locations/${id}`, {
+      method: 'DELETE',
+    });
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'خطا در حذف محل پارکینگ');
+    }
+  }
+}
 
 // Components
 interface LocationCardProps {
@@ -335,127 +266,15 @@ function LocationCard({ location, onEdit, onDelete, onManageCameras, onManageLot
   );
 }
 
-interface CameraCardProps {
-  camera: Camera;
-  onEdit: (camera: Camera) => void;
-  onDelete: (cameraId: string) => void;
-  onToggleStatus: (cameraId: string) => void;
-}
-
-function CameraCard({ camera, onEdit, onDelete, onToggleStatus }: CameraCardProps) {
-  const getTypeLabel = (type: string) => {
-    const labels = {
-      "ENTRY": "ورودی",
-      "EXIT": "خروجی", 
-      "BOTH": "هر دو"
-    };
-    return labels[type as keyof typeof labels] || type;
-  };
-
-  const getDirectionLabel = (direction: string) => {
-    const labels = {
-      "IN": "ورود",
-      "OUT": "خروج"
-    };
-    return labels[direction as keyof typeof labels] || direction;
-  };
-
-  return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Camera className="h-4 w-4 text-blue-500" />
-            {camera.name}
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <Badge variant={camera.isActive ? "default" : "secondary"}>
-              {camera.isActive ? "فعال" : "غیرفعال"}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-gray-600">نوع:</span>
-            <p className="font-medium">{getTypeLabel(camera.type)}</p>
-          </div>
-          <div>
-            <span className="text-gray-600">جهت:</span>
-            <p className="font-medium">{getDirectionLabel(camera.direction)}</p>
-          </div>
-        </div>
-
-        {camera.ipAddress && (
-          <div className="text-sm">
-            <span className="text-gray-600">IP:</span>
-            <p className="font-mono text-xs">{camera.ipAddress}</p>
-          </div>
-        )}
-
-        {camera.resolution && (
-          <div className="text-sm">
-            <span className="text-gray-600">رزولوشن:</span>
-            <p className="font-medium">{camera.resolution}</p>
-          </div>
-        )}
-
-        {camera.notes && (
-          <div className="text-sm text-gray-600 p-2 bg-gray-50 rounded">
-            {camera.notes}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            variant={camera.isActive ? "destructive" : "default"}
-            onClick={() => onToggleStatus(camera.id)}
-            className="flex-1"
-          >
-            {camera.isActive ? (
-              <>
-                <Pause className="h-4 w-4 ml-1" />
-                غیرفعال
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 ml-1" />
-                فعال
-              </>
-            )}
-          </Button>
-          
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => onEdit(camera)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => onDelete(camera.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 // Forms
 interface LocationFormProps {
   location?: ParkingLocation;
   onSave: (data: LocationFormData) => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
-function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
+function LocationForm({ location, onSave, onCancel, isLoading }: LocationFormProps) {
   const [formData, setFormData] = useState<LocationFormData>({
     name: location?.name || "",
     description: location?.description || "",
@@ -478,6 +297,7 @@ function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           placeholder="مثال: پارکینگ مرکزی"
           required
+          disabled={isLoading}
         />
       </div>
 
@@ -488,6 +308,7 @@ function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="توضیحات اختیاری"
+          disabled={isLoading}
         />
       </div>
 
@@ -498,6 +319,7 @@ function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
           value={formData.address}
           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
           placeholder="آدرس کامل"
+          disabled={isLoading}
         />
       </div>
 
@@ -508,15 +330,17 @@ function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
           checked={formData.isActive}
           onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
           className="rounded"
+          disabled={isLoading}
         />
         <Label htmlFor="isActive">فعال</Label>
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1">
+        <Button type="submit" className="flex-1" disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           {location ? "به‌روزرسانی" : "ایجاد"}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button type="button" variant="outline" onClick={onCancel} className="flex-1" disabled={isLoading}>
           انصراف
         </Button>
       </div>
@@ -524,284 +348,126 @@ function LocationForm({ location, onSave, onCancel }: LocationFormProps) {
   );
 }
 
-interface CameraFormProps {
-  camera?: Camera;
-  locationId: string;
-  onSave: (data: CameraFormData) => void;
-  onCancel: () => void;
-}
-
-function CameraForm({ camera, locationId, onSave, onCancel }: CameraFormProps) {
-  const [formData, setFormData] = useState<CameraFormData>({
-    name: camera?.name || "",
-    type: camera?.type || "ENTRY",
-    direction: camera?.direction || "IN",
-    ipAddress: camera?.ipAddress || "",
-    rtspUrl: camera?.rtspUrl || "",
-    resolution: camera?.resolution || "",
-    notes: camera?.notes || "",
-    isActive: camera?.isActive ?? true
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">نام دوربین</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="مثال: دوربین ورودی اصلی"
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="type">نوع دوربین</Label>
-          <Select 
-            value={formData.type} 
-            onValueChange={(value: any) => setFormData({ ...formData, type: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ENTRY">ورودی</SelectItem>
-              <SelectItem value="EXIT">خروجی</SelectItem>
-              <SelectItem value="BOTH">هر دو</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="direction">جهت</Label>
-          <Select 
-            value={formData.direction} 
-            onValueChange={(value: any) => setFormData({ ...formData, direction: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="IN">ورود</SelectItem>
-              <SelectItem value="OUT">خروج</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="ipAddress">آدرس IP</Label>
-          <Input
-            id="ipAddress"
-            value={formData.ipAddress}
-            onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-            placeholder="192.168.1.100"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="resolution">رزولوشن</Label>
-          <Input
-            id="resolution"
-            value={formData.resolution}
-            onChange={(e) => setFormData({ ...formData, resolution: e.target.value })}
-            placeholder="1920x1080"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="rtspUrl">آدرس RTSP</Label>
-        <Input
-          id="rtspUrl"
-          value={formData.rtspUrl}
-          onChange={(e) => setFormData({ ...formData, rtspUrl: e.target.value })}
-          placeholder="rtsp://192.168.1.100:554/stream"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notes">یادداشت‌ها</Label>
-        <Input
-          id="notes"
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="یادداشت‌های اختیاری"
-        />
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="isActive"
-          checked={formData.isActive}
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-          className="rounded"
-        />
-        <Label htmlFor="isActive">فعال</Label>
-      </div>
-
-      <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1">
-          {camera ? "به‌روزرسانی" : "ایجاد"}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-          انصراف
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-// Main Component
-export default function ParkingLocationManagement() {
-  const [locations, setLocations] = useState<ParkingLocation[]>(mockLocations);
+export default function ParkingLocationsManagement() {
+  const [locations, setLocations] = useState<ParkingLocation[]>([]);
   const [editingLocation, setEditingLocation] = useState<ParkingLocation | null>(null);
-  const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<ParkingLocation | null>(null);
-  const [isLocationFormOpen, setIsLocationFormOpen] = useState(false);
-  const [isCameraFormOpen, setIsCameraFormOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("locations");
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Calculate statistics
-  const stats = {
-    totalLocations: locations.length,
-    activeLocations: locations.filter(l => l.isActive).length,
-    totalCameras: locations.reduce((sum, l) => sum + l.cameras.length, 0),
-    activeCameras: locations.reduce((sum, l) => sum + l.cameras.filter(c => c.isActive).length, 0),
-    totalCapacity: locations.reduce((sum, l) => 
-      sum + l.parkingLots.reduce((lotSum, lot) => lotSum + lot.totalCapacity, 0), 0
-    ),
-    occupiedSpaces: locations.reduce((sum, l) => 
-      sum + l.parkingLots.reduce((lotSum, lot) => lotSum + lot.occupiedSpaces, 0), 0
-    )
-  };
+  // Load locations
+  useEffect(() => {
+    loadLocations();
+  }, []);
 
-  const handleSaveLocation = (formData: LocationFormData) => {
-    if (editingLocation) {
-      // Update existing location
-      setLocations(locations.map(loc => 
-        loc.id === editingLocation.id 
-          ? { 
-              ...loc, 
-              ...formData, 
-              updatedAt: new Date() 
-            }
-          : loc
-      ));
-    } else {
-      // Create new location
-      const newLocation: ParkingLocation = {
-        id: Date.now().toString(),
-        ...formData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        cameras: [],
-        parkingLots: []
-      };
-      setLocations([...locations, newLocation]);
-    }
-    setIsLocationFormOpen(false);
-    setEditingLocation(null);
-  };
-
-  const handleSaveCamera = (formData: CameraFormData) => {
-    if (!selectedLocation) return;
-
-    const cameraData: Camera = {
-      ...formData,
-      id: editingCamera?.id || Date.now().toString(),
-      locationId: selectedLocation.id,
-      createdAt: editingCamera?.createdAt || new Date(),
-      updatedAt: new Date()
-    };
-
-    if (editingCamera) {
-      // Update existing camera
-      setLocations(locations.map(loc => {
-        if (loc.id === selectedLocation.id) {
-          return {
-            ...loc,
-            cameras: loc.cameras.map(cam => 
-              cam.id === editingCamera.id ? cameraData : cam
-            )
-          };
-        }
-        return loc;
-      }));
-    } else {
-      // Create new camera
-      setLocations(locations.map(loc => {
-        if (loc.id === selectedLocation.id) {
-          return {
-            ...loc,
-            cameras: [...loc.cameras, cameraData]
-          };
-        }
-        return loc;
-      }));
-    }
-    setIsCameraFormOpen(false);
-    setEditingCamera(null);
-  };
-
-  const handleDeleteLocation = (locationId: string) => {
-    if (confirm("آیا از حذف این محل اطمینان دارید؟")) {
-      setLocations(locations.filter(loc => loc.id !== locationId));
+  const loadLocations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ParkingLocationsAPI.getLocations();
+      setLocations(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در دریافت اطلاعات');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteCamera = (cameraId: string) => {
-    if (!selectedLocation) return;
-    
-    if (confirm("آیا از حذف این دوربین اطمینان دارید؟")) {
-      setLocations(locations.map(loc => {
-        if (loc.id === selectedLocation.id) {
-          return {
-            ...loc,
-            cameras: loc.cameras.filter(cam => cam.id !== cameraId)
-          };
-        }
-        return loc;
-      }));
-    }
-  };
+  const handleSaveLocation = async (formData: LocationFormData) => {
+    try {
+      setActionLoading(true);
+      setError(null);
 
-  const handleToggleCameraStatus = (cameraId: string) => {
-    if (!selectedLocation) return;
-    
-    setLocations(locations.map(loc => {
-      if (loc.id === selectedLocation.id) {
-        return {
-          ...loc,
-          cameras: loc.cameras.map(cam => 
-            cam.id === cameraId 
-              ? { ...cam, isActive: !cam.isActive, updatedAt: new Date() }
-              : cam
-          )
-        };
+      if (editingLocation) {
+        // Update existing location
+        const updatedLocation = await ParkingLocationsAPI.updateLocation(
+          editingLocation.id, 
+          formData
+        );
+        setLocations(locations.map(loc => 
+          loc.id === editingLocation.id ? updatedLocation : loc
+        ));
+      } else {
+        // Create new location
+        const newLocation = await ParkingLocationsAPI.createLocation(formData);
+        setLocations([...locations, newLocation]);
       }
-      return loc;
-    }));
+      
+      setIsFormDialogOpen(false);
+      setEditingLocation(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در ذخیره اطلاعات');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditLocation = (location: ParkingLocation) => {
+    setEditingLocation(location);
+    setIsFormDialogOpen(true);
+  };
+
+  const handleDeleteLocation = async (locationId: string) => {
+    if (!confirm("آیا از حذف این محل پارکینگ اطمینان دارید؟")) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError(null);
+      await ParkingLocationsAPI.deleteLocation(locationId);
+      setLocations(locations.filter(loc => loc.id !== locationId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در حذف محل پارکینگ');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleManageCameras = (location: ParkingLocation) => {
-    setSelectedLocation(location);
-    setActiveTab("cameras");
+    // Navigate to cameras page with location filter
+    window.location.href = `/cameras?locationId=${location.id}`;
   };
 
   const handleManageLots = (location: ParkingLocation) => {
-    setSelectedLocation(location);
-    setActiveTab("lots");
+    // Navigate to parking floors page with location filter
+    window.location.href = `/parking-floors?locationId=${location.id}`;
   };
+
+  const handleAddNewLocation = () => {
+    setEditingLocation(null);
+    setIsFormDialogOpen(true);
+  };
+
+  // Calculate overall statistics
+  const totalStats = locations.reduce((stats, location) => {
+    if (!location.isActive) return stats;
+    const locationCapacity = location.parkingLots.reduce((sum, lot) => sum + lot.totalCapacity, 0);
+    const locationOccupied = location.parkingLots.reduce((sum, lot) => sum + lot.occupiedSpaces, 0);
+    return {
+      totalLocations: stats.totalLocations + 1,
+      totalCapacity: stats.totalCapacity + locationCapacity,
+      occupiedSpaces: stats.occupiedSpaces + locationOccupied,
+      activeCameras: stats.activeCameras + location.cameras.filter(c => c.isActive).length,
+    };
+  }, { totalLocations: 0, totalCapacity: 0, occupiedSpaces: 0, activeCameras: 0 });
+
+  const overallOccupancyRate = totalStats.totalCapacity > 0 
+    ? (totalStats.occupiedSpaces / totalStats.totalCapacity) * 100 
+    : 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -809,28 +475,33 @@ export default function ParkingLocationManagement() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">مدیریت محل‌ها و دوربین‌ها</h1>
+            <h1 className="text-3xl font-bold">مدیریت محل‌های پارکینگ</h1>
             <p className="text-gray-600 mt-1">
               {formatPersianDate(new Date())}
             </p>
           </div>
-          <Button onClick={() => {
-            setEditingLocation(null);
-            setIsLocationFormOpen(true);
-          }}>
+          <Button onClick={handleAddNewLocation}>
             <Plus className="h-4 w-4 ml-2" />
             افزودن محل جدید
           </Button>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        {/* Error Display */}
+        {error && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Overall Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">کل محل‌ها</p>
-                  <p className="text-xl font-bold">{toPersianNumerals(stats.totalLocations)}</p>
+                  <p className="text-sm text-gray-600">تعداد محل‌ها</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(totalStats.totalLocations)}</p>
                 </div>
                 <Building className="h-8 w-8 text-blue-500" />
               </div>
@@ -841,46 +512,10 @@ export default function ParkingLocationManagement() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">محل‌های فعال</p>
-                  <p className="text-xl font-bold text-green-600">{toPersianNumerals(stats.activeLocations)}</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">کل دوربین‌ها</p>
-                  <p className="text-xl font-bold">{toPersianNumerals(stats.totalCameras)}</p>
-                </div>
-                <Camera className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">دوربین‌های فعال</p>
-                  <p className="text-xl font-bold text-blue-600">{toPersianNumerals(stats.activeCameras)}</p>
-                </div>
-                <Wifi className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-sm text-gray-600">ظرفیت کل</p>
-                  <p className="text-xl font-bold">{toPersianNumerals(stats.totalCapacity)}</p>
+                  <p className="text-2xl font-bold">{toPersianNumerals(totalStats.totalCapacity)}</p>
                 </div>
-                <Car className="h-8 w-8 text-orange-500" />
+                <Building className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
@@ -890,133 +525,100 @@ export default function ParkingLocationManagement() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">اشغال شده</p>
-                  <p className="text-xl font-bold text-red-600">{toPersianNumerals(stats.occupiedSpaces)}</p>
+                  <p className="text-2xl font-bold text-orange-500">
+                    {toPersianNumerals(totalStats.occupiedSpaces)}
+                  </p>
                 </div>
-                <Users className="h-8 w-8 text-red-500" />
+                <CheckCircle className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">دوربین‌های فعال</p>
+                  <p className="text-2xl font-bold text-blue-500">
+                    {toPersianNumerals(totalStats.activeCameras)}
+                  </p>
+                </div>
+                <Camera className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="locations">محل‌های پارکینگ</TabsTrigger>
-            <TabsTrigger value="cameras" disabled={!selectedLocation}>دوربین‌ها</TabsTrigger>
-            <TabsTrigger value="lots" disabled={!selectedLocation}>طبقات پارکینگ</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="locations" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {locations.map((location) => (
-                <LocationCard
-                  key={location.id}
-                  location={location}
-                  onEdit={(loc) => {
-                    setEditingLocation(loc);
-                    setIsLocationFormOpen(true);
-                  }}
-                  onDelete={handleDeleteLocation}
-                  onManageCameras={handleManageCameras}
-                  onManageLots={handleManageLots}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="cameras" className="space-y-4">
-            {selectedLocation && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold">دوربین‌های {selectedLocation.name}</h2>
-                    <p className="text-gray-600">{selectedLocation.address}</p>
-                  </div>
-                  <Button onClick={() => {
-                    setEditingCamera(null);
-                    setIsCameraFormOpen(true);
-                  }}>
-                    <Plus className="h-4 w-4 ml-2" />
-                    افزودن دوربین
-                  </Button>
+        {/* Overall Occupancy Rate */}
+        {totalStats.totalCapacity > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">درصد اشغال کلی:</span>
+                  <span className="font-semibold">{toPersianNumerals(Math.round(overallOccupancyRate))}%</span>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {selectedLocation.cameras.map((camera) => (
-                    <CameraCard
-                      key={camera.id}
-                      camera={camera}
-                      onEdit={(cam) => {
-                        setEditingCamera(cam);
-                        setIsCameraFormOpen(true);
-                      }}
-                      onDelete={handleDeleteCamera}
-                      onToggleStatus={handleToggleCameraStatus}
-                    />
-                  ))}
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full ${
+                      overallOccupancyRate > 80 ? "bg-red-500" : 
+                      overallOccupancyRate > 60 ? "bg-orange-500" : "bg-green-500"
+                    }`}
+                    style={{ width: `${Math.min(overallOccupancyRate, 100)}%` }}
+                  ></div>
                 </div>
-
-                {selectedLocation.cameras.length === 0 && (
-                  <div className="text-center py-12">
-                    <Camera className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-500">هیچ دوربینی برای این محل تعریف نشده است</p>
-                    <Button className="mt-4" onClick={() => setIsCameraFormOpen(true)}>
-                      افزودن اولین دوربین
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="lots" className="space-y-4">
-            {selectedLocation && (
-              <div className="text-center py-12">
-                <Building className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-500">مدیریت طبقات پارکینگ</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  این بخش در صفحه مدیریت طبقات پارکینگ در دسترس است
-                </p>
-                <Button className="mt-4" variant="outline">
-                  رفتن به مدیریت طبقات
-                </Button>
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Location Form Dialog */}
-        <Dialog open={isLocationFormOpen} onOpenChange={setIsLocationFormOpen}>
-          <DialogContent className="max-w-md">
+        {/* Locations Grid */}
+        {locations.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Building className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-semibold mb-2">هیچ محل پارکینگی تعریف نشده</h3>
+              <p className="text-gray-600 mb-4">
+                برای شروع، یک محل پارکینگ جدید ایجاد کنید
+              </p>
+              <Button onClick={handleAddNewLocation}>
+                <Plus className="h-4 w-4 ml-2" />
+                ایجاد محل پارکینگ
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {locations.map((location) => (
+              <LocationCard
+                key={location.id}
+                location={location}
+                onEdit={handleEditLocation}
+                onDelete={handleDeleteLocation}
+                onManageCameras={handleManageCameras}
+                onManageLots={handleManageLots}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Form Dialog */}
+        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {editingLocation ? "ویرایش محل پارکینگ" : "ایجاد محل پارکینگ جدید"}
               </DialogTitle>
             </DialogHeader>
             <LocationForm
-              location={editingLocation || undefined}
+              location={editingLocation}
               onSave={handleSaveLocation}
-              onCancel={() => setIsLocationFormOpen(false)}
+              onCancel={() => {
+                setIsFormDialogOpen(false);
+                setEditingLocation(null);
+              }}
+              isLoading={actionLoading}
             />
-          </DialogContent>
-        </Dialog>
-
-        {/* Camera Form Dialog */}
-        <Dialog open={isCameraFormOpen} onOpenChange={setIsCameraFormOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCamera ? "ویرایش دوربین" : "ایجاد دوربین جدید"}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedLocation && (
-              <CameraForm
-                camera={editingCamera || undefined}
-                locationId={selectedLocation.id}
-                onSave={handleSaveCamera}
-                onCancel={() => setIsCameraFormOpen(false)}
-              />
-            )}
           </DialogContent>
         </Dialog>
       </div>
