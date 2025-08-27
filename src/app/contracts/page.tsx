@@ -29,7 +29,8 @@ import {
   Filter,
   Download,
   Loader2,
-  Settings
+  Settings,
+  UserPlus
 } from "lucide-react";
 
 function formatPersianDate(date: Date | string): string {
@@ -469,6 +470,291 @@ function ContractCard({ contract, onEdit, onDelete, onViewDetails, onRecordUsage
   );
 }
 
+// Person Selector Component with Create New Person functionality
+interface PersonSelectorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  persons: User[]; // This should actually be Person[] from persons API
+  onPersonCreated: (newPerson: User) => void;
+  disabled?: boolean;
+}
+
+function PersonSelector({ value, onValueChange, persons, onPersonCreated, disabled }: PersonSelectorProps) {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newPerson, setNewPerson] = useState({
+    firstName: "",
+    lastName: "",
+    nationalCode: "",
+    mobile: "",
+    email: "",
+    organization: "",
+    department: "",
+    position: "",
+    accessLevel: "STANDARD" as const
+  });
+
+  const handleCreatePerson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPerson.firstName.trim() || !newPerson.lastName.trim()) return;
+
+    try {
+      setIsCreating(true);
+      const response = await fetch('/api/persons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newPerson,
+          vehicles: [] // Start with no vehicles
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'خطا در ایجاد شخص');
+      }
+
+      const createdPerson = await response.json();
+      
+      // Convert Person to User-like object for compatibility
+      const userLikeObject = {
+        id: createdPerson.id,
+        name: `${createdPerson.firstName} ${createdPerson.lastName}`,
+        email: createdPerson.email || "",
+        username: createdPerson.nationalCode || createdPerson.id
+      };
+      
+      onPersonCreated(userLikeObject);
+      onValueChange(createdPerson.id);
+      setIsCreateDialogOpen(false);
+      setNewPerson({
+        firstName: "",
+        lastName: "",
+        nationalCode: "",
+        mobile: "",
+        email: "",
+        organization: "",
+        department: "",
+        position: "",
+        accessLevel: "STANDARD"
+      });
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'خطا در ایجاد شخص');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>شخص</Label>
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="h-6 px-2 text-xs"
+          >
+            <UserPlus className="h-3 w-3 ml-1" />
+            شخص جدید
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open('/persons', '_blank')}
+            className="h-6 px-2 text-xs"
+            title="مدیریت اشخاص در صفحه جداگانه"
+          >
+            <Users className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+      
+      {persons.length === 0 ? (
+        <div className="space-y-2">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              هیچ شخصی یافت نشد. لطفاً ابتدا شخص جدید ایجاد کنید یا به صفحه اشخاص مراجعه نمایید.
+            </AlertDescription>
+          </Alert>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="flex-1"
+            >
+              <UserPlus className="h-4 w-4 ml-2" />
+              ایجاد شخص
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.open('/persons', '_blank')}
+              className="flex-1"
+            >
+              <Users className="h-4 w-4 ml-2" />
+              صفحه اشخاص
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+          <SelectTrigger>
+            <SelectValue placeholder="شخص را انتخاب کنید" />
+          </SelectTrigger>
+          <SelectContent>
+            {persons.map((person) => (
+              <SelectItem key={person.id} value={person.id}>
+                {person.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {/* Create Person Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <RTLDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <RTLDialogWrapper>
+            <DialogHeader>
+              <DialogTitle>ایجاد شخص جدید</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreatePerson} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="firstName">نام</Label>
+                  <Input
+                    id="firstName"
+                    value={newPerson.firstName}
+                    onChange={(e) => setNewPerson({ ...newPerson, firstName: e.target.value })}
+                    placeholder="نام"
+                    required
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">نام خانوادگی</Label>
+                  <Input
+                    id="lastName"
+                    value={newPerson.lastName}
+                    onChange={(e) => setNewPerson({ ...newPerson, lastName: e.target.value })}
+                    placeholder="نام خانوادگی"
+                    required
+                    className="text-right"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nationalCode">کد ملی (اختیاری)</Label>
+                  <Input
+                    id="nationalCode"
+                    value={newPerson.nationalCode}
+                    onChange={(e) => setNewPerson({ ...newPerson, nationalCode: e.target.value })}
+                    placeholder="کد ملی"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mobile">موبایل (اختیاری)</Label>
+                  <Input
+                    id="mobile"
+                    value={newPerson.mobile}
+                    onChange={(e) => setNewPerson({ ...newPerson, mobile: e.target.value })}
+                    placeholder="شماره موبایل"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email">ایمیل (اختیاری)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newPerson.email}
+                    onChange={(e) => setNewPerson({ ...newPerson, email: e.target.value })}
+                    placeholder="ایمیل"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="organization">سازمان (اختیاری)</Label>
+                  <Input
+                    id="organization"
+                    value={newPerson.organization}
+                    onChange={(e) => setNewPerson({ ...newPerson, organization: e.target.value })}
+                    placeholder="نام سازمان"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="department">بخش (اختیاری)</Label>
+                  <Input
+                    id="department"
+                    value={newPerson.department}
+                    onChange={(e) => setNewPerson({ ...newPerson, department: e.target.value })}
+                    placeholder="نام بخش"
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="position">سمت (اختیاری)</Label>
+                  <Input
+                    id="position"
+                    value={newPerson.position}
+                    onChange={(e) => setNewPerson({ ...newPerson, position: e.target.value })}
+                    placeholder="سمت شغلی"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="accessLevel">سطح دسترسی</Label>
+                <Select 
+                  value={newPerson.accessLevel} 
+                  onValueChange={(value) => setNewPerson({ ...newPerson, accessLevel: value as any })}
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="STANDARD">معمولی</SelectItem>
+                    <SelectItem value="VIP">ویژه</SelectItem>
+                    <SelectItem value="STAFF">کارمند</SelectItem>
+                    <SelectItem value="MANAGEMENT">مدیریت</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  انصراف
+                </Button>
+                <Button type="submit" disabled={isCreating || (!newPerson.firstName.trim() || !newPerson.lastName.trim())}>
+                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                  ایجاد شخص
+                </Button>
+              </div>
+            </form>
+          </RTLDialogWrapper>
+        </RTLDialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 interface ContractFormProps {
   contract?: ParkingContract;
   locations: ParkingLocation[];
@@ -479,7 +765,8 @@ interface ContractFormProps {
   isLoading?: boolean;
 }
 
-function ContractForm({ contract, locations, customers, vehicles, onSave, onCancel, isLoading }: ContractFormProps) {
+function ContractForm({ contract, locations, customers: initialCustomers, vehicles, onSave, onCancel, isLoading }: ContractFormProps) {
+  const [customers, setCustomers] = useState<User[]>(initialCustomers);
   const [formData, setFormData] = useState<ContractFormData>({
     customerId: contract?.customerId || "",
     vehicleId: contract?.vehicleId || "none",
@@ -547,25 +834,16 @@ function ContractForm({ contract, locations, customers, vehicles, onSave, onCanc
         
         <TabsContent value="basic" className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customerId">مشتری</Label>
-              <Select
-                value={formData.customerId}
-                onValueChange={(value) => setFormData({ ...formData, customerId: value })}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="مشتری را انتخاب کنید" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <CustomerSelector
+              value={formData.customerId}
+              onValueChange={(value) => setFormData({ ...formData, customerId: value })}
+              customers={customers}
+              onCustomerCreated={(newCustomer) => {
+                // Add the new customer to the list
+                setCustomers(prev => [...prev, newCustomer]);
+              }}
+              disabled={isLoading}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="locationId">محل پارکینگ</Label>
@@ -1262,6 +1540,7 @@ export default function ContractsManagement() {
               }}
               isLoading={actionLoading}
             />
+            </RTLDialogWrapper>
           </RTLDialogContent>
         </Dialog>
 

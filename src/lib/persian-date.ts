@@ -151,7 +151,10 @@ export const isPersianHoliday = (date: Date | string): boolean => {
 };
 
 // Convert numbers to Persian numerals
-export const toPersianNumerals = (num: number | string): string => {
+export const toPersianNumerals = (num: number | string | null | undefined): string => {
+  if (num === null || num === undefined) {
+    return "۰";
+  }
   const str = num.toString();
   const persianNumerals = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
   return str.replace(/[0-9]/g, (digit) => persianNumerals[parseInt(digit)]);

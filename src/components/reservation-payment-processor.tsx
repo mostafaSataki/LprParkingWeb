@@ -19,7 +19,7 @@ import {
   ExternalLink,
   Clock
 } from "lucide-react";
-import { toPersianNumerals } from "@/lib/utils";
+import { toPersianNumerals } from "@/lib/persian-date";
 
 interface PaymentProcessorProps {
   reservation: any;
@@ -63,7 +63,7 @@ function PaymentForm({ onSubmit, reservation }: {
     }
   };
 
-  const remainingAmount = reservation.totalAmount - reservation.paidAmount;
+  const remainingAmount = (reservation.totalAmount || 0) - (reservation.paidAmount || 0);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -132,7 +132,7 @@ export default function ReservationPaymentProcessor({ reservation, onPaymentComp
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentResult, setPaymentResult] = useState<any>(null);
 
-  const remainingAmount = reservation.totalAmount - reservation.paidAmount;
+  const remainingAmount = (reservation.totalAmount || 0) - (reservation.paidAmount || 0);
   const isFullyPaid = remainingAmount <= 0;
 
   const handlePaymentSubmit = async (data: PaymentFormData) => {

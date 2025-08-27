@@ -30,7 +30,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Plus as AddIcon
+  Plus as AddIcon,
+  Database
 } from "lucide-react";
 import { formatPersianDate, toPersianNumerals } from "@/lib/persian-date";
 
@@ -471,7 +472,8 @@ function PaginationControls({
   onPageChange, 
   onItemsPerPageChange 
 }: PaginationControlsProps) {
-  const generatePageNumbers = () => {
+  // Generate page numbers directly
+  const pageNumbers = React.useMemo(() => {
     const pages = [];
     const maxVisiblePages = 5;
     
@@ -503,9 +505,7 @@ function PaginationControls({
     }
     
     return pages;
-  };
-
-  const pageNumbers = generatePageNumbers();
+  }, [currentPage, totalPages]);
   
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -700,6 +700,24 @@ export default function PersonsPage() {
     }
   };
 
+  const handleSeedSampleData = async () => {
+    if (!confirm("آیا از ایجاد داده‌های نمونه اطمینان دارید؟ این عمل داده‌های موجود را حذف می‌کند.")) return;
+
+    try {
+      const response = await fetch('/api/persons/seed', {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error("خطا در ایجاد داده‌های نمونه");
+
+      const data = await response.json();
+      alert(`✅ ${data.message}`);
+      fetchPersons();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در ایجاد داده‌های نمونه");
+    }
+  };
+
   const filteredPersons = persons.filter(person => {
     const matchesSearch = person.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          person.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -742,7 +760,17 @@ export default function PersonsPage() {
               {formatPersianDate(new Date(), "dddd، DD MMMM YYYY")}
             </p>
           </div>
-          <CreatePersonDialog onPersonCreated={fetchPersons} />
+          <div className="flex items-center gap-2">
+            <CreatePersonDialog onPersonCreated={fetchPersons} />
+            <Button
+              variant="outline"
+              onClick={handleSeedSampleData}
+              className="flex items-center gap-2"
+            >
+              <Database className="h-4 w-4" />
+              ایجاد داده نمونه
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

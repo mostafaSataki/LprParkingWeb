@@ -78,11 +78,12 @@ const mockReservations = [
     spotNumber: "A-15",
     lotName: "طبقه همکف",
     locationName: "پارکینگ مرکزی",
-    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-    endTime: new Date(Date.now() + 6 * 60 * 60 * 1000),
+    startTime: new Date("2024-09-01T10:00:00"), // تاریخ ثابت
+    endTime: new Date("2024-09-01T14:00:00"), // تاریخ ثابت
     duration: 240,
     status: "CONFIRMED",
     totalAmount: 40000,
+    paidAmount: 40000,
     isPaid: true,
     paymentMethod: "ONLINE",
   },
@@ -97,11 +98,12 @@ const mockReservations = [
     spotNumber: "B-08",
     lotName: "طبقه اول",
     locationName: "پارکینگ مرکزی",
-    startTime: new Date(Date.now() + 1 * 60 * 60 * 1000),
-    endTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
+    startTime: new Date("2024-09-01T09:00:00"), // تاریخ ثابت
+    endTime: new Date("2024-09-01T13:00:00"), // تاریخ ثابت
     duration: 180,
     status: "PENDING",
     totalAmount: 30000,
+    paidAmount: 0,
     isPaid: false,
     paymentMethod: null,
   },
@@ -327,6 +329,14 @@ function ReservationCard({ reservation, onPaymentComplete }: {
   reservation: any; 
   onPaymentComplete: () => void;
 }) {
+  const [formattedStartDate, setFormattedStartDate] = useState("در حال بارگذاری...");
+  const [formattedEndDate, setFormattedEndDate] = useState("در حال بارگذاری...");
+
+  useEffect(() => {
+    setFormattedStartDate(formatPersianDate(reservation.startTime));
+    setFormattedEndDate(formatPersianDate(reservation.endTime));
+  }, [reservation.startTime, reservation.endTime]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "CONFIRMED": return "bg-green-100 text-green-800";
@@ -394,7 +404,7 @@ function ReservationCard({ reservation, onPaymentComplete }: {
         <div className="flex items-center gap-2 text-sm">
           <Clock className="h-4 w-4" />
           <span>
-            {formatPersianDate(reservation.startTime)} - {formatPersianDate(reservation.endTime)}
+            {formattedStartDate} - {formattedEndDate}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -436,7 +446,7 @@ export default function ReservationSystem() {
   const [parkingSpots, setParkingSpots] = useState(mockParkingSpots);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const availableSpots = parkingSpots.filter(spot => spot.status === "AVAILABLE");
 
@@ -444,7 +454,7 @@ export default function ReservationSystem() {
     const matchesSearch = reservation.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          reservation.reservationCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          reservation.vehiclePlate.includes(searchTerm);
-    const matchesStatus = !statusFilter || reservation.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -470,6 +480,7 @@ export default function ReservationSystem() {
         duration: data.duration,
         status: "PENDING",
         totalAmount: Math.round(data.duration * 167), // Simple calculation
+        paidAmount: 0,
         isPaid: false,
         paymentMethod: null,
       };
@@ -591,7 +602,7 @@ export default function ReservationSystem() {
                     <SelectValue placeholder="وضعیت" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">همه</SelectItem>
+                    <SelectItem value="all">همه</SelectItem>
                     <SelectItem value="PENDING">در انتظار پرداخت</SelectItem>
                     <SelectItem value="CONFIRMED">تأیید شده</SelectItem>
                     <SelectItem value="ACTIVE">فعال</SelectItem>
