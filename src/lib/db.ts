@@ -11,3 +11,6 @@ export const db =
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+
+// Export as prisma as well for compatibility
+export const prisma = db

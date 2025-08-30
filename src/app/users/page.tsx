@@ -224,7 +224,7 @@ export default function UsersPage() {
       }
 
       if (statusFilter !== "all") {
-        params.append("isActive", statusFilter);
+        params.append("isActive", statusFilter === "active" ? "true" : "false");
       }
 
       if (searchTerm) {

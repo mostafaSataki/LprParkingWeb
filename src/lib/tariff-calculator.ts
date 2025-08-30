@@ -13,6 +13,11 @@ export interface CalculationResult {
     days?: number;
     nights?: number;
     discounts?: number;
+    groupDiscount?: {
+      type: 'PERCENTAGE' | 'FIXED';
+      value: number;
+      appliedAmount: number;
+    };
     caps?: {
       daily?: number;
       nightly?: number;
@@ -133,6 +138,16 @@ export class TariffCalculator {
 
     // Calculate total amount
     totalAmount += dailyAmount + nightlyAmount + hourlyAmount;
+    
+    // Apply group discounts if applicable
+    if (tariff.group && this.shouldApplyGroupDiscount(tariff.group, entryTime)) {
+      const groupDiscount = this.calculateGroupDiscount(totalAmount, tariff.group);
+      if (groupDiscount.appliedAmount > 0) {
+        totalAmount -= groupDiscount.appliedAmount;
+        result.breakdown.groupDiscount = groupDiscount;
+        result.appliedRules.push(`GROUP_DISCOUNT_${groupDiscount.type}`);
+      }
+    }
     
     // Apply rounding (to nearest 1000)
     totalAmount = Math.round(totalAmount / 1000) * 1000;
@@ -310,6 +325,14 @@ export class TariffCalculator {
       breakdown.push(`تخفیف: ${result.breakdown.discounts.toLocaleString()} تومان`);
     }
     
+    if (result.breakdown.groupDiscount && result.breakdown.groupDiscount.appliedAmount > 0) {
+      const discount = result.breakdown.groupDiscount;
+      const discountText = discount.type === 'PERCENTAGE' 
+        ? `تخفیف گروهی (${discount.value}%): ${discount.appliedAmount.toLocaleString()} تومان`
+        : `تخفیف گروهی: ${discount.appliedAmount.toLocaleString()} تومان`;
+      breakdown.push(discountText);
+    }
+    
     breakdown.push(`مبلغ کل: ${result.totalAmount.toLocaleString()} تومان`);
     
     return breakdown;
@@ -343,5 +366,38 @@ export class TariffCalculator {
     }
     
     return result;
+  }
+
+  /**
+   * Check if group discount should be applied
+   */
+  private static shouldApplyGroupDiscount(group: VehicleGroup, entryTime: Date): boolean {
+    // Check if group has discount configuration
+    if (!group.isActive) return false;
+    
+    // Check validity period
+    if (entryTime < group.validFrom || (group.validTo && entryTime > group.validTo)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Calculate group discount amount
+   */
+  private static calculateGroupDiscount(
+    totalAmount: number, 
+    group: VehicleGroup
+  ): { type: 'PERCENTAGE' | 'FIXED'; value: number; appliedAmount: number } {
+    // For now, we'll use the entrance fee as discount amount
+    // In a real implementation, you might want to add specific discount fields to VehicleGroup
+    const discountAmount = Math.min(totalAmount * 0.1, group.entranceFee || 0); // 10% discount or entrance fee
+    
+    return {
+      type: 'PERCENTAGE',
+      value: 10, // 10% discount
+      appliedAmount: discountAmount
+    };
   }
 }
